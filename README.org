@@ -1,0 +1,23 @@
+* NAME
+
+gnuplotting : A strong gnuplot-based plotting backend for Python
+
+* SYNOPSIS
+
+#+BEGIN_SRC python
+
+import gnuplotting
+
+with gnuplotting.Gnuplot() as gp:
+    print(gp.version())
+    gp.cmd('set term wxt')
+    gp.plot(...)
+
+#+END_SRC
+
+* DESCRIPTION
+
+Gnuplotting is a Python package that intends to be a strong reliable
+wrapper around the Gnuplot software. It provides a 2-way low-level 
+communication api with Gnuplot and a higher level api for common 
+use-cases.
