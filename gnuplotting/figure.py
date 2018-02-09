@@ -20,8 +20,10 @@
 import itertools
 
 from .platform import map
+from .multithreading import LockedGenerator
 from .errors import GnuplotError, GnuplotTimeoutError
-from .utils import CallableGenerator, LockedGenerator
+from .utils import CallableGenerator
+
 
 class GnuplotFigure(object):
 
@@ -60,6 +62,7 @@ class GnuplotFigure(object):
         self.__output = output
         self.__settings = []
         self.__plots = []
+        self.__splots = []
         self.reset()
 
     def setTitle(self, title):
@@ -92,8 +95,9 @@ class GnuplotFigure(object):
         self.__settings.append('unset ' + setting)
 
     def reset(self):
-        self.__settings.clear()
-        self.__plots.clear()
+        del self.__settings[:]
+        del self.__plots[:]
+        del self.__splots[:]
         self.__unsafeSet('term', self.__term, str(self.__id))
         self.__settings.append('reset')
         if self.__options:
@@ -102,19 +106,59 @@ class GnuplotFigure(object):
         if self.__output: self.__unsafeSet('output', '"' + self.__output + '"')
         if self.__title: self.__unsafeSet('title', '"' + self.__title + '"')
 
+    def splot(self, *datas, **kwargs):
+        _for = kwargs.pop('_for', None)
+        _with = kwargs.pop('_with', None)
+        using = kwargs.pop('using', None)
+        title = kwargs.pop('title', None)
+        _for = 'for {} '.format(_for) if _for else ''
+        using = 'using {} '.format(using) if using else ''
+        _with = 'with {} '.format(_with) if _with else ''
+        title = 'title "{}"'.format(title) if title else ''
+        suffix = ' ' + using + _with + title
+        self.__splots.extend(map(lambda i, data:
+                                (_for if i == 0 else '') + \
+                                 data + suffix,
+                                (i for i in range(len(datas))),
+                                datas))
+
     def plot(self, *datas, **kwargs):
-        self.__plots.extend(map(lambda data: 'plot ' + data, datas))
+        _for = kwargs.pop('_for', None)
+        _range = kwargs.pop('sampling_range', '')
+        axes = kwargs.pop('axes', None)
+        _with = kwargs.pop('_with', None)
+        using = kwargs.pop('using', None)
+        title = kwargs.pop('title', None)
+        _for = 'for {} '.format(_for) if _for else ''
+        axes = 'axes {} '.format(axes) if axes else ''
+        using = 'using {} '.format(using) if using else ''
+        _with = 'with {} '.format(_with) if _with else ''
+        title = 'title "{}"'.format(title) if title else ''
+        suffix = ' ' + axes + using + _with + title
+        self.__plots.extend(map(lambda i, data:
+                                (_for if i == 0 else '') + \
+                                ('sample ' + _range \
+                                     if i == 0 and _range \
+                                               and len(self.__plots) == 0\
+                                     else _range) + \
+                                data + suffix,
+                                (i for i in range(len(datas))),
+                                datas))
 
     def wait(self, timeout=None):
         wait_evt = (self.__term + '_' + str(self.__id), 'Close')
-        self.__context.wait(*(wait_evt,), timeout=timeout)
+        self.__context.wait((wait_evt,), timeout=timeout)
 
-    def submit(self, wait=False, wait_timeout=None, timeout=-1, reset=False):
+    def submit(self, wait=False, timeout=-1, reset=False):
+        plotLine = ('plot ' + ', '.join(self.__plots),) if self.__plots else ()
+        splotLine = ('splot ' + ', '.join(self.__splots),) \
+                    if self.__splots else ()
         self.__context.cmd('set term push', timeout=self.__context.NO_WAIT)
         try:
-            self.__context.send(self.__settings, timeout=timeout)
-            self.__context.send(self.__plots, timeout=timeout)
-            if wait: self.wait(wait_timeout)
-            if reset: self.reset(timeout) 
+            self.__context.send(itertools.chain(self.__settings,
+                                                plotLine, splotLine),
+                                timeout=timeout)
+            if wait: self.wait(wait if not isinstance(wait, bool) else None)
+            if reset: self.reset()
         finally:
             self.__context.cmd('set term pop', timeout=self.__context.NO_WAIT)

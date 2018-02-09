@@ -22,12 +22,12 @@ import time
 import logging
 import itertools
 import subprocess
-from numbers import Number
 
-from .utils import LockedGenerator, CallableGenerator, NoOp
-from .platform import map, DEFAULT_GNUPLOT_CMD 
+from .utils import CallableGenerator, NoOp, isnumber
+from .platform import map, DEFAULT_GNUPLOT_CMD, print_function
 from .context import GnuplotContext
-from .multithreading import threading, queue, Event, Future, FutureTimeoutError
+from .multithreading import (threading, queue, Event, Future,
+                             FutureTimeoutError, LockedGenerator)
 from .errors import GnuplotError, GnuplotTimeoutError, parseError
 
 
@@ -179,7 +179,7 @@ class GnuplotProcess(GnuplotContext):
         if not isinstance(log, bool):
             raise TypeError("'log' argument must be a boolean value")
         if not (defaultTimeout is None or \
-                 (isinstance(defaultTimeout, Number) and defaultTimeout >= 0)):
+                 (isnumber(defaultTimeout) and defaultTimeout >= 0)):
             raise TypeError("'defaultTimeout' argument must be None or a >= 0 "
                             "number")
         self.id = self.__uniqueId()
@@ -235,7 +235,8 @@ class GnuplotProcess(GnuplotContext):
     def __initLogger(self, log):
         if log:
             return logging.getLogger('%s-%d' % \
-                                     (self.__class__.__qualname__, self.id))
+                                     (self.__class__.__module__ + \
+                                      self.__class__.__name__, self.id))
         else:
             return NoOp()
 
@@ -244,7 +245,7 @@ class GnuplotProcess(GnuplotContext):
         self.__stdin.write((line + os.linesep).encode())
 
     def __getTimeout(self, timeout):
-        if isinstance(timeout, Number) and timeout < 0:
+        if isnumber(timeout) and timeout < 0:
             timeout = self.__defaultTimeout
         return timeout
 
@@ -349,7 +350,7 @@ class GnuplotProcess(GnuplotContext):
         # return the result
         return result or None
 
-    def wait(self, *evts, timeout=-1):
+    def wait(self, evts=(), timeout=-1):
         """Wait for gnuplot events to happen
 
         :param evts:
@@ -412,8 +413,8 @@ class GnuplotProcess(GnuplotContext):
         ...     t.setDaemon(True)
         ...     tip = time.time()
         ...     t.start()
-        ...     gp.wait(('qt_0', 'Close'),
-        ...             ('qt_1', 'Close'), timeout=5)
+        ...     gp.wait([('qt_0', 'Close'),
+        ...             ('qt_1', 'Close')], timeout=5)
         ...     gp.wait(timeout=wait)
         ...     top = time.time()
         ...     t.join()
@@ -460,7 +461,7 @@ class GnuplotProcess(GnuplotContext):
             finally:
                 # Restore the original terminal
                 self.cmd('set term pop', timeout=self.NO_WAIT)
-        elif isinstance(timeout, Number) and timeout > 0:
+        elif isnumber(timeout) and timeout > 0:
             time.sleep(timeout)
         else:
             raise TypeError("'timeout' argument must be > 0 if provided alone")

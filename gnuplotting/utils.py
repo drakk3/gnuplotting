@@ -18,14 +18,16 @@
 
 
 from .platform import IS_PYTHON2
-from .multithreading import threading
 
 
 VOID = type('VOID', (object,), {})()
 
-def isfloat(obj):
+def isnumber(obj):
+    return isinstance(obj, (int, float))
+
+def isfloat(string):
     try:
-        float(obj)
+        float(string)
         return True
     except ValueError:
         return False
@@ -41,7 +43,7 @@ def iterable(obj):
         ``True`` if `obj` is an iterable, ``False`` otherwise
 
     """
-    return hasattr(obj, '__iter__')
+    return hasattr(obj, '__iter__') or hasattr(obj, '__getitem__')
 
 # Generator utility functions
 def CallableGenerator(gen):
@@ -56,26 +58,6 @@ def CallableGenerator(gen):
 
     """
     return gen.next if IS_PYTHON2 else gen.__next__
-
-def LockedGenerator(gen):
-    """Turn a generator into a thread-safe one
-
-    :param gen:
-        :type: `genexpr`
-        The generator to convert
-
-    :returns:
-        A new generator that protects the use of the given generator with a lock
-
-    """
-    lock = threading.RLock()
-    def locked():
-        it = VOID
-        while True:
-            with lock:
-                it = next(gen)
-            yield it
-    return locked()
 
 class NoOp(object):
 

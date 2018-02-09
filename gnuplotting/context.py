@@ -20,8 +20,10 @@
 import os
 import itertools
 
+from .platform import print_function, unicode
 from .figure import GnuplotFigure
-from .variable import GnuplotVarContext, GnuplotFun
+from .variable import GnuplotNamespace, GnuplotFunction
+
 
 class GnuplotContext(object):
 
@@ -30,7 +32,7 @@ class GnuplotContext(object):
 
     def __init__(self):
         super(GnuplotContext, self).__init__()
-        self.__vars = GnuplotVarContext(self)
+        self.__vars = GnuplotNamespace(self)
 
     vars = property(lambda self: self.__vars)
 
@@ -97,13 +99,14 @@ class GnuplotContext(object):
 
         """
         # Argument checking
-        if not isinstance(cmd, str):
-            raise TypeError("'cmd' argument must be a string")
+        if not isinstance(cmd, (str, unicode)):
+            raise TypeError("'cmd' argument must be a string, given '{}'" \
+                            .format(cmd))
         if not hasattr(inline_data, '__iter__'):
             raise TypeError("'inline_data' argument must be an iterable")
         return self.send(itertools.chain((cmd,), inline_data), **kwargs)
 
-    def interactiveCmd(self, cmd, *args, timeout=-1):
+    def interactiveCmd(self, cmd, *args, **kwargs):
         """Run a Gnuplot interactive command
 
         :param cmd:
@@ -112,9 +115,9 @@ class GnuplotContext(object):
         :param args:
             :type: `iterable of str`
             The command parameters
-        :param timeout:
-            :type: `None or float`
-            Timeout argument to pass to `GnuplotContext.cmd`
+        :param kwargs:
+            :type: `dict-mapping`
+            Additionnal arguments to pass to `GnuplotContext.cmd`
 
         :returns:
             The result of the command
@@ -138,8 +141,9 @@ class GnuplotContext(object):
         The `fit` ...
 
         """
+        self.__ignoreKwarg('inline_data', **kwargs)
         return self.cmd(cmd + ' ' + ' '.join(map(str, args)),
-                        inline_data=self.__FLUSH_INTERACTIVE(), timeout=timeout)
+                        inline_data=self.__FLUSH_INTERACTIVE(), **kwargs)
 
     def supportsTimeout(self):
         raise NotImplementedError
@@ -274,7 +278,7 @@ class GnuplotContext(object):
         return res
 
     def function(self, args, body):
-        return GnuplotFun(self, args, body)
+        return GnuplotFunction(self.vars, args, body)
     
     def Figure(self, id=None, title=None,
                term=None, options=None, output=None):
@@ -300,12 +304,13 @@ class GnuplotContext(object):
         >>> from .gnuplot import Gnuplot
         >>> with Gnuplot() as gp:
         ...     fig1 = gp.Figure(title='My awesome figure')#, term='wxt')
-        ...     fig1.plot('sin(x)')
+        ...     fig1.plot('sin(x)', _with='linespoints')
+        ...     fig1.plot('tan(x)', sampling_range='[-pi:pi]', title='tan(x)')
         ...     fig1.submit(timeout=5)
         ...     fig2 = gp.Figure(title='Another awesome figure')#, term='wxt')
-        ...     fig2.plot('cos(x)')
+        ...     gp.vars.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
+        ...     fig2.splot(gp.vars.f['x', 'y'], _with='pm3d')
         ...     fig2.submit(timeout=5, wait=True)
-        ...
         ...
 
         """

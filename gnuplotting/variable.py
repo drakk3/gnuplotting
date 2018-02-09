@@ -18,69 +18,96 @@
 
 
 from .utils import isfloat
-from .platform import map
+from .platform import map, print_function
 
 
 class GnuplotDefinable(object):
-
-    def __init__(self, context):
+    def __init__(self, ns):
         super(GnuplotDefinable, self).__init__()
-        self.__context = context
+        self.__name = None
+        self.__ns = ns
+    ns = property(lambda self: self.__ns)
 
-    def define(self, name, value):
+    def gnuplotId(self):
+        return self.__name
+
+    def fullname(self):
+        return self.__name
+
+    def destroy(self):
+        self.__ns.undefine(self.gnuplotId())
+        self.__ns = None
+
+    def expr(self):
         raise NotImplementedError
 
-    def _define(self, expr):
-        self.__context.cmd(expr)
-    
-    def _eval(self, name, expr):
-        value = self.__context.cmd('if(exists("{name}")) printerr {expr}' \
-                                   .format(name=name, expr=expr))
-        if value:
-            if value.isdigit():
-                return int(value)
-            elif isfloat(value):
-                return float(value)
-            return value
-        return None
-
-
-class GnuplotFun(GnuplotDefinable):
-
-    def __init__(self, context, args, body):
-        super(GnuplotFun, self).__init__(context)
-        self.__args = args
-        self.__body = body
-        self.__name = None
-
-    arity = property(lambda self: len(self.__args))
-
-    def define(self, name, value):
-        self._define(name + '(' + ', '.join(map(str, self.__args)) + ') = ' + \
-                     self.__body)
+    def __setName(self, name):
         self.__name = name
+        self.__ns.define(self.fullname(), self.expr())
+
+    name = property(lambda self: self.__name, __setName)
+
+
+class GnuplotFunction(GnuplotDefinable):
+    def __init__(self, ns, args, body):
+        super(GnuplotFunction, self).__init__(ns)
+        self.__args = args
+        self.__body = str(body)
+        self.__arity = len(args)
+        self.expr = lambda: self.__body
+
+    arity = property(lambda self: self.__arity)
+
+    def __formatArgs(self, args):
+        return ', '.join(map(str, args))
+
+    def gnuplotId(self):
+        return 'GPFUN_' + self.name
+
+    def fullname(self):
+        return self.name + '(' + self.__formatArgs(self.__args) + ')'
 
     def __call__(self, *args):
-        return self._eval('GPFUN_' + self.__name, '{name}({args})' \
-                          .format(name=self.__name,
-                                  args=', '.join(map(str, args))))
-        
+        expr = self.name + '(' + self.__formatArgs(args) + ')'
+        return self.ns.eval(self.gnuplotId(), expr)
 
-class GnuplotVar(GnuplotDefinable):
+    def __getitem__(self, args):
+        return self.name + '(' + self.__formatArgs(args) + ')'
 
-    def __init__(self, context):
-        super(GnuplotVar, self).__init__(context)
-        self.__name = None
 
-    def define(self, name, value):
-        self._define(name + ' = ' + str(value))
-        self.__name = name
+class GnuplotVariable(GnuplotDefinable):
+    def __init__(self, ns, value):
+        super(GnuplotVariable, self).__init__(ns)
+        self.__value = value
+        self.expr = lambda: str(self.__value)
 
-    def __call__(self):
-        return self._eval(self.__name, self.__name)             
-        
+    def __get__(self, instance, owner=None):
+        return self.__value
+
+
+class Namespace(dict):
+
+    def __init__(self, **kwargs):
+        super(Namespace, self).__init__()
+        for name, value in kwargs.items():
+            if name.startswith('__') and not name.endswith('__'):
+                name = '_' + type(self).__name__ + name
+            super(Namespace, self).__setattr__(name, value)
+
+    def __setattr__(self, name, value):
+        self[name] = value
+
+    def __getattr__(self, name):
+        if name in self:
+            obj = self[name]
+            if hasattr(obj, '__get__'):
+                return obj.__get__(self, None)
+            return obj
+        raise AttributeError("%s has no attribute %s" % \
+                             (type(self).__name__, name))
     
-class GnuplotVarContext(object):
+
+class GnuplotNamespace(Namespace):
     """A Context that manages the access of Gnuplot variables and functions
 
     :param context:
@@ -92,48 +119,64 @@ class GnuplotVarContext(object):
     >>> from .gnuplot import Gnuplot
     >>> with Gnuplot() as gp:
     ...     gp.vars.max = 99                          # define 'max' variable
-    ...     print(gp.vars.max())                      # retrieve 'max' value
+    ...     print(gp.vars.max)                        # retrieve 'max' value
     ...     gp.vars.f = gp.function(['x'], 'x + 1')   # define 'f(x)' function
     ...     print(gp.vars.f.arity)
     ...     print(gp.vars.f(1))                       # evaluate 'f(1)'
     ...     gp.vars.max = 10.0                        # set 'max' value to 10
-    ...     print(gp.vars.max())                      # retrieve 'max' new value
+    ...     print(gp.vars.max)                        # retrieve 'max' new value
     ...     print(gp.vars.f(10))                      # evaluate 'f(10)'
     ...     gp.vars.max = None                        # undefine 'max'
+    ...     try:
+    ...         gp.vars.max
+    ...     except AttributeError as e:
+    ...         pass
+    ...     else:
+    ...         raise AssertionError("'max' should be undefined")
     99
     1
     2
     10.0
     11
-    
-    """
-    __PRIVATE_PREFIX = '_GnuplotVarContext'
 
+    """
     def __init__(self, context):
-        super(GnuplotVarContext, self).__init__()
-        self.__context = context
-    
+        super(GnuplotNamespace, self).__init__(__context=context)
+
     def __setattr__(self, name, value):
-        if name.startswith(self.__PRIVATE_PREFIX):
-            self.__dict__[name] = value
+        if value is None:
+            if name in self:
+                self.pop(name).destroy()
         else:
-            if value is None:
-                self.__context.cmd('undefine ' + name)
-                self.__dict__.pop(name)
-            else:
-                if isinstance(value, GnuplotFun):
-                    obj = value
-                else:
-                    obj = GnuplotVar(self.__context)
-                obj.define(name, value)
-                self.__dict__[name] = obj
+            obj = value
+            if not isinstance(value, GnuplotDefinable):
+                obj = GnuplotVariable(self, value)
+            obj.name = name
+            super(GnuplotNamespace, self).__setattr__(name, obj)
+                
+    def eval(self, name, expr):
+        value = self.__context.cmd('if(exists("{name}")) printerr {expr} ; ' \
+                                   'else printerr "    line 0: \'{name}\' is not '
+                                   'defined'.format(name=name, expr=expr))
+        if value:
+            if value.isdigit():
+                return int(value)
+            elif isfloat(value):
+                return float(value)
+            return value
+        return None
+
+    def define(self, name, expr):
+        self.__context.cmd(name + ' = ' + expr)
+
+    def undefine(self, name):
+        self.__context.cmd('undefine ' + name)
+
     
-    def clear(self):
-        todo = []
-        for name, obj in self.__dict__.items():
-            if not name.startswith(self.__PRIVATE_PREFIX):
-                todo.append(name)
-        self.__context.send(map(lambda e: self.__dict__.pop(e) and \
-                                          'undefine ' + e, todo))
+    def clear(self, timeout=-1):
+        self.__context.send(map(lambda e: self.pop(e[0]) and \
+                                          'undefine ' + e[1].gnuplotId(),
+                                self.items()),
+                            timeout=timeout)
 
 

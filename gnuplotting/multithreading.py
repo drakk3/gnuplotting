@@ -17,9 +17,9 @@
 # along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from numbers import Number
+from .utils import isnumber, VOID
 
-from .platform import IS_PYTHON2
+from .platform import IS_PYTHON2, print_function
 if IS_PYTHON2:
     import Queue as queue
     class TimeoutError(OSError):
@@ -32,6 +32,28 @@ try:
     import threading
 except ImportError:
     import dummy_threading as threading
+
+
+def LockedGenerator(gen):
+    """Turn a generator into a thread-safe one
+
+    :param gen:
+        :type: `genexpr`
+        The generator to convert
+
+    :returns:
+        A new generator that protects the use of the given generator with a lock
+
+    """
+    lock = threading.RLock()
+    def locked():
+        it = VOID
+        while True:
+            with lock:
+                it = next(gen)
+            yield it
+    return locked()
+
 
 class Event(object):
     """Events used in a multi-threading context
@@ -92,8 +114,7 @@ class Event(object):
         True
 
         """
-        if not (timeout is None or \
-                (isinstance(timeout, Number) and timeout >= 0)):
+        if not (timeout is None or (isnumber(timeout) and timeout >= 0)):
             raise TypeError("'timeout' argument must be None or a >= 0 number")
         return self.__backend.wait(timeout)
 
@@ -136,11 +157,13 @@ class Future(object):
         ... def task(abort):
         ...     return True
         >>> task()
-        >>> task()
-        Traceback (most recent call last):
-            ...
-        gnuplotting.multithreading.FutureStateError: This future can only be called once
-
+        >>> try:
+        ...     task()
+        ... except FutureStateError:
+        ...     pass
+        ... else:
+        ...     raise AssertionError("A future can be call only once")
+        
         """
         self.__call(*args, **kwargs)
 
@@ -161,7 +184,7 @@ class Future(object):
         ... def task(abort):
         ...     while not abort(): 
         ...         print('hello')
-        ...         time.sleep(0.1)
+        ...         time.sleep(0.2)
         ...
         >>> t = threading.Thread(target = task)
         >>> t.start()

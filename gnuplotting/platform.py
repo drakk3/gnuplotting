@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 
 import sys
 import inspect
@@ -26,15 +27,17 @@ IS_PYTHON2 = sys.version < '3'
 
 # Normalize some function across the different Python version
 if IS_PYTHON2:
+    unicode = unicode
     map = itertools.imap
     reduce = reduce
 else:
+    unicode = str
     map = map
     reduce = functools.reduce
 _inspect = inspect
 inspect = type('INSPECT', (object,),
                {'isgenerator': lambda self, fun: _inspect.isgenerator(fun),
-                'getargspec': lambda self, fun: inspect.getargspec(fun) \
+                'getargspec': lambda self, fun: _inspect.getargspec(fun) \
                                   if IS_PYTHON2 \
                                   else _inspect.getfullargspec(fun)})()
 

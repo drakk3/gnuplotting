@@ -21,6 +21,7 @@
 import os
 import sys
 import glob
+import inspect
 import doctest
 import unittest
 import importlib
@@ -34,8 +35,7 @@ def load_tests(loader=None, test=None, pattern=None):
     if not ROOT in sys.path:
             sys.path.append(ROOT)
     gnuplotting = 'gnuplotting'
-    test_paths = glob.iglob(os.path.join(gnuplotting, '**.py'),
-                            recursive=True)
+    test_paths = glob.iglob(os.path.join(gnuplotting, '**.py'))
     test_paths = (test_path.replace('.py', '') \
                   for test_path in test_paths)
     test_module_path_by_names = \
@@ -45,7 +45,8 @@ def load_tests(loader=None, test=None, pattern=None):
                      importlib.import_module(mod_path, gnuplotting)) \
                         for mod_name, mod_path in test_module_path_by_names)
     tests = {test_mod_name: doctest.DocTestSuite(module=test_mod) \
-             for test_mod_name, test_mod in test_modules}
+             for test_mod_name, test_mod in test_modules \
+             if inspect.getsource(test_mod).find('"""') > -1}
     doctests_dict = {name: unittest.TestSuite([test]) \
                      for name, test in tests.items()}
     doctests_dict['alltests'] = unittest.TestSuite(tests.values())

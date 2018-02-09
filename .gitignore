@@ -22,4 +22,4 @@ __pycache__
 doc
 dist
 build
-
+*.pyc

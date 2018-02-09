@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
 
+from .platform import print_function
 
 try:
 
@@ -84,17 +85,17 @@ except ImportError:
         :returns:
             The class type of the first element of `a`
 
-        >>> arraytype([0, 1, 3])
-        <class 'int'>
+        >>> arraytype([0, 1, 3]) is int
+        True
 
-        >>> arraytype(((1, 2),))
-        <class 'int'>
+        >>> arraytype(((1, 2),)) is int
+        True
 
-        >>> arraytype([1.0, 1, 3, 'A'])
-        <class 'float'>
+        >>> arraytype([1.0, 1, 3, 'A']) is float
+        True
 
-        >>> arraytype(((('A', 3, 5)), ((2)), ((((1, 4, 4), 5)))))
-        <class 'str'>
+        >>> arraytype(((('A', 3, 5)), ((2)), ((((1, 4, 4), 5))))) is str
+        True
 
         """
         if iterable(a):

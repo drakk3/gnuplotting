@@ -26,7 +26,7 @@ ERROR_PATTERNS = [
     re.compile(
         '(?:gnuplot>\s+(?P<cmd>[^\n]+)\s)?'
             '(?:\s+\^\n)?'
-            '\s+line\s+(?P<line>[0-9]+):\s+(?P<msg>[^\n]+)\s+$', 
+            '\s+line\s+(?P<line>[0-9]+):\s+(?P<msg>[^\n]+)\s*$', 
             re.M + re.S)
 ]
 

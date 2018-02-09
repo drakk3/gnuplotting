@@ -19,25 +19,36 @@
 args = $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 $(eval $(args):;@:)
 
-python = build/venv/bin/python
-wheel = build/venv/bin/wheel
-pip = build/venv/bin/pip
+env = build/venv
+python_dev_bin = $(env)/$(PYTHON)/bin
+python_dev = $(python_dev_bin)/python
+wheel_dev = $(python_dev_bin)/wheel
+pip_dev = $(python_dev_bin)/pip
 py_src = gnuplotting/*.py
 
-$(python):
+$(python_dev):
 	pip install --user 'virtualenv>=15.1.0'
-	virtualenv --no-site-packages build/venv
+	virtualenv --no-site-packages $(env)/$(PYTHON) --python=$(PYTHON)
 
-$(wheel): $(python) $(pip)
-	$(pip) install -r requirements.txt
+$(wheel_dev): $(python_dev) $(pip_dev)
+	$(pip_dev) install -r requirements.txt
 
-venv: $(python) $(wheel)
+venv: $(python_dev) $(wheel_dev)
 
 test: venv $(py_src)
-	$(python) setup.py test $(args)
+	$(python_dev) -B setup.py test $(args)
 
-dist: test
-	$(python) setup.py bdist_wheel $(args)
+dist_dev: test
+	$(python_dev) -B setup.py bdist_wheel $(args)
 
-doc: venv README.org $(py_src)
-	$(python) org-doc.py -m README.org -i 'gnuplotting/**.py' -o doc
+install_dev: dist_dev
+	$(python_dev) setup.py install $(args)
+
+dist:
+	python setup.py bdist_wheel $(args)
+
+install: dist
+	python setup.py install $(args)
+
+clean:
+	rm -f build dist __pycache__
