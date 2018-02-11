@@ -28,22 +28,25 @@ class GnuplotDefinable(object):
         self.__ns = ns
     ns = property(lambda self: self.__ns)
 
-    def gnuplotId(self):
+    @property
+    def gnuplot_id(self):
         return self.__name
 
-    def fullname(self):
+    @property
+    def qualname(self):
         return self.__name
 
     def destroy(self):
-        self.__ns.undefine(self.gnuplotId())
+        self.__ns.undefine(self.name, self.gnuplot_id)
         self.__ns = None
 
+    @property
     def expr(self):
         raise NotImplementedError
 
     def __setName(self, name):
         self.__name = name
-        self.__ns.define(self.fullname(), self.expr())
+        self.__ns.define(self.qualname, self.expr)
 
     name = property(lambda self: self.__name, __setName)
 
@@ -54,32 +57,43 @@ class GnuplotFunction(GnuplotDefinable):
         self.__args = args
         self.__body = str(body)
         self.__arity = len(args)
-        self.expr = lambda: self.__body
 
     arity = property(lambda self: self.__arity)
 
     def __formatArgs(self, args):
         return ', '.join(map(str, args))
 
-    def gnuplotId(self):
+    @property
+    def gnuplot_id(self):
         return 'GPFUN_' + self.name
 
-    def fullname(self):
+    @property
+    def qualname(self):
         return self.name + '(' + self.__formatArgs(self.__args) + ')'
+
+    @property
+    def expr(self):
+        return self.__body
 
     def __call__(self, *args):
         expr = self.name + '(' + self.__formatArgs(args) + ')'
-        return self.ns.eval(self.gnuplotId(), expr)
+        return self.ns.eval(self.gnuplot_id, expr)
+
+    def pack(self, *args):
+        return self.name + '(' + self.__formatArgs(args) + ')'
 
     def __getitem__(self, args):
-        return self.name + '(' + self.__formatArgs(args) + ')'
+        return self.pack(*args)
 
 
 class GnuplotVariable(GnuplotDefinable):
     def __init__(self, ns, value):
         super(GnuplotVariable, self).__init__(ns)
         self.__value = value
-        self.expr = lambda: str(self.__value)
+
+    @property
+    def expr(self):
+        return str(self.__value)
 
     def __get__(self, instance, owner=None):
         return self.__value
@@ -122,6 +136,7 @@ class GnuplotNamespace(Namespace):
     ...     print(gp.vars.max)                        # retrieve 'max' value
     ...     gp.vars.f = gp.function(['x'], 'x + 1')   # define 'f(x)' function
     ...     print(gp.vars.f.arity)
+    ...     print(gp.vars.f.gnuplot_id)
     ...     print(gp.vars.f(1))                       # evaluate 'f(1)'
     ...     gp.vars.max = 10.0                        # set 'max' value to 10
     ...     print(gp.vars.max)                        # retrieve 'max' new value
@@ -135,6 +150,7 @@ class GnuplotNamespace(Namespace):
     ...         raise AssertionError("'max' should be undefined")
     99
     1
+    GPFUN_f
     2
     10.0
     11
@@ -169,13 +185,14 @@ class GnuplotNamespace(Namespace):
     def define(self, name, expr):
         self.__context.cmd(name + ' = ' + expr)
 
-    def undefine(self, name):
-        self.__context.cmd('undefine ' + name)
+    def undefine(self, name, gnuplot_id):
+        self.__context.cmd('undefine ' + gnuplot_id)
+        self.pop(name, None)
 
     
     def clear(self, timeout=-1):
         self.__context.send(map(lambda e: self.pop(e[0]) and \
-                                          'undefine ' + e[1].gnuplotId(),
+                                          'undefine ' + e[1].gnuplot_id,
                                 self.items()),
                             timeout=timeout)
 
