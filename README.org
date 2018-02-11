@@ -42,7 +42,7 @@ with gnuplotting.Gnuplot(defaultTimeout=1) as gp:
     gp.vars.g = gp.function(['u', 'v'], ('cos(u)', 'sin(v)'))
 
     # 3D plotting
-    fig2.splot(gp.vars.g['x', 'y'] _with='pm3d')
+    fig2.splot(gp.vars.g['x', 'y'], _with='pm3d')
 
     # Rendering is done only when `submit` is called
     fig1.submit()
