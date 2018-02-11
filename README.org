@@ -6,6 +6,26 @@ Gnuplotting is a Python package that intends to be an easy to use and reliable
 wrapper around the Gnuplot software. It provides a 2-way low-level 
 communication api with Gnuplot and a higher level api for common use-cases.
 
+* Installation
+** From the sources
+*** Requirements
+    - Git
+    - Python (tested on 2.7 and 3.6, Linux 4.14)
+    - Pip
+    - GNU make
+    - Gnuplot (tested on 5.2 patchlevel 2)
+
+*** Downloading
+    #+BEGIN_SRC bash
+    git clone https://github.com/drakk3/gnuplotting.git gnuplotting
+    #+END_SRC
+
+*** Installing
+    #+BEGIN_SRC bash
+    cd gnuplotting
+    make install --user
+   #+END_SRC
+
 * Usage
 #+BEGIN_SRC python
 
@@ -58,6 +78,8 @@ with gnuplotting.Gnuplot(defaultTimeout=1) as gp:
     - [X] Variables
     - [-] Tabulated functions
     - [-] Arrays (Numpy compatible)
+      + [-] As Gnuplot Data blocks
+      + [-] As Gnuplot arrays 
 *** DOING Provide a consitent API to style each plot
     - [X] Per plot styling
     - [-] Global figure styling
