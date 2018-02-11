@@ -1,0 +1,81 @@
+* Name
+Gnuplotting : An easy to use gnuplot-based plotting backend for Python
+
+* Description
+Gnuplotting is a Python package that intends to be an easy to use and reliable
+wrapper around the Gnuplot software. It provides a 2-way low-level 
+communication api with Gnuplot and a higher level api for common use-cases.
+
+* Usage
+#+BEGIN_SRC python
+
+import gnuplotting
+
+with gnuplotting.Gnuplot(defaultTimeout=1) as gp:
+    
+    # The output of Gnuplot is accessible in Python 
+    print(gp.version)
+    
+    # Defining Gnuplot user variable from Python
+    gp.vars.c = 2
+
+    # Defining Gnuplot user function from Python
+    gp.vars.f = gp.function(['x'], '2*x**2 + x + c')
+
+    # Function and variables are evaluable inside the Python interpreter
+    print(gp.vars.f(5) + gp.vars.c)
+
+    # Defining a new Gnuplot figure    
+    fig1 = gp.Figure(title="My first awesome figure",
+                     term='qt')
+    
+    # Plotting
+    fig1.plot('f(x)', _with='linespoints')
+
+    # Plotting another curve on the same figure
+    fig1.plot('tan(x)', sampling_range='[-pi:pi]')
+
+    # Defining another figure, term is inferred from the default terminal 
+    fig2 = gp.Figure(title="Another awesome figure !")
+    
+    # Defining a 2 variables function
+    gp.vars.g = gp.function(['u', 'v'], ('cos(u)', 'sin(v)'))
+
+    # 3D plotting
+    fig2.splot(gp.vars.g['x', 'y'] _with='pm3d')
+
+    # Rendering is done only when `submit` is called
+    fig1.submit()
+
+    # Gnuplotting can wait for the user to close a window
+    fig2.submit(wait=True)
+
+#+END_SRC
+
+#+TODO: TODO DOING FEEDBACK VERIFY | DONE CANCELED
+* Backlog
+** DOING Provide a consistent API to pass Python datas
+** DOING Provide a consitent API to style each plot
+** TODO Enable the use of multiplot
+** TODO Enable the use of fit
+** TODO Provide a consistent API to stream datas in real-time
+   
+* Author
+Romain CHÂTEL <rchastel@protonmail.com>
+
+* Licence
+Copyright (C) 2017-2018 Romain CHÂTEL <rchastel@protonmail.com>
+This file is part of Gnuplotting.
+
+Gnuplotting is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Gnuplotting is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
