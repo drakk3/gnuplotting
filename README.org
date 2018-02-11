@@ -52,13 +52,13 @@ with gnuplotting.Gnuplot(defaultTimeout=1) as gp:
 
 #+END_SRC
 
-#+TODO: TODO DOING FEEDBACK VERIFY | DONE CANCELED
 * Backlog
-** DOING Provide a consistent API to pass Python datas
-** DOING Provide a consitent API to style each plot
-** TODO Enable the use of multiplot
-** TODO Enable the use of fit
-** TODO Provide a consistent API to stream datas in real-time
+#+TODO: TODO DOING FEEDBACK VERIFY | DONE CANCELED
+*** DOING Provide a consistent API to pass Python datas
+*** DOING Provide a consitent API to style each plot
+*** TODO Enable the use of multiplot
+*** TODO Enable the use of fit
+*** TODO Provide a consistent API to stream datas in real-time
    
 * Author
 Romain CHÂTEL <rchastel@protonmail.com>
