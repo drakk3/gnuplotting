@@ -22,7 +22,8 @@ import itertools
 
 from .platform import print_function, unicode
 from .figure import GnuplotFigure
-from .variable import GnuplotNamespace, GnuplotFunction
+from .variable import (GnuplotVariableNamespace, GnuplotFunctionNamespace,
+                       GnuplotFunction)
 
 
 class GnuplotContext(object):
@@ -32,9 +33,11 @@ class GnuplotContext(object):
 
     def __init__(self):
         super(GnuplotContext, self).__init__()
-        self.__vars = GnuplotNamespace(self)
+        self.__vars = GnuplotVariableNamespace(self)
+        self.__funs = GnuplotFunctionNamespace(self)
 
     vars = property(lambda self: self.__vars)
+    funs = property(lambda self: self.__funs)
 
     def __enter__(self):
         return self
@@ -175,8 +178,12 @@ class GnuplotContext(object):
         ...
 
         """
-        try: self.__vars.clear()
-        except ValueError: pass
+        try:
+            self.__vars.clear()
+            self.__funs.clear()
+        except ValueError:
+            # The pipe may already been closed, silent the error
+            pass
 
     def quit(self):
         """ Send the `quit` command to gnuplot
@@ -311,8 +318,8 @@ class GnuplotContext(object):
         ...     fig1.plot('tan(x)', sampling_range='[-pi:pi]', title='tan(x)')
         ...     fig1.submit(timeout=5)
         ...     fig2 = gp.Figure(title='Another awesome figure')#, term='wxt')
-        ...     gp.vars.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
-        ...     fig2.splot(gp.vars.f['x', 'y'], _with='pm3d')
+        ...     gp.funs.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
+        ...     fig2.splot(gp.funs.f['x', 'y'], _with='pm3d')
         ...     fig2.submit(timeout=5, wait=True)
         ...
 
