@@ -42,7 +42,7 @@ class GnuplotFigure(object):
             error_msg = "'term' argument could not be infered, " \
                         "please provide one.\nCause: %s"
             try:
-                term = self.__context.cmd('show term', timeout=0.1)
+                term = self.__context.cmd('show term')
                 offset = len(self.__term_desc_prefix)
                 start = term.find(self.__term_desc_prefix)
                 if start > -1:
