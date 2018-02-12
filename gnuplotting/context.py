@@ -287,8 +287,7 @@ class GnuplotContext(object):
     def function(self, args, body):
         return GnuplotFunction(self.vars, args, body)
     
-    def Figure(self, term=None, id=None, title=None, size=None,
-               options=None, output=None):
+    def Figure(self, term=None, id=None, title=None, options=None, output=None):
         """Create a new Gnuplot figure
 
         :param term:
@@ -313,16 +312,16 @@ class GnuplotContext(object):
 
         >>> from .gnuplot import Gnuplot
         >>> with Gnuplot() as gp:
-        ...     fig1 = gp.Figure(title='My awesome figure')#, term='wxt')
+        ...     fig1 = gp.Figure(title='My awesome figure', id=0)#, term='wxt')
         ...     fig1.plot('sin(x)', _with='linespoints')
         ...     fig1.plot('tan(x)', sampling_range='[-pi:pi]', title='tan(x)')
         ...     fig1.submit(timeout=5)
-        ...     fig2 = gp.Figure(title='Another awesome figure')#, term='wxt')
+        ...     fig2 = gp.Figure(title='Another awesome figure', id=1)#, term='wxt')
         ...     gp.funs.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
         ...     fig2.splot(gp.funs.f['x', 'y'], _with='pm3d')
         ...     fig2.submit(timeout=5, wait=True)
         ...
 
         """
-        return GnuplotFigure(self, term=term, id=id, title=title, size=size,
+        return GnuplotFigure(self, term=term, id=id, title=title,
                              options=options, output=output)

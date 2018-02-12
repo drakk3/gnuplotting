@@ -28,15 +28,14 @@ from .utils import CallableGenerator
 class GnuplotFigure(object):
 
     __uniqueId = CallableGenerator(LockedGenerator(itertools.count(0, 1)))
-    __protected_settings = frozenset(('term', 'terminal', 'termoption',
-                                      'title', 'output', 'size'))
+    __protected_settings = frozenset(('term', 'terminal', 'title', 'output'))
     __term_desc_prefix = 'terminal type is '
 
-    def __init__(self, context, term=None, id=None, title=None, size=None,
-                 options=None, output=None): 
+    def __init__(self, context, term=None, id=None, title=None,
+                 options=None, output=None):
         super(GnuplotFigure, self).__init__()
         self.__context = context
-        self.__id = id or self.__uniqueId()
+        self.__id = id
         self.__term = term
         # Infer terminal type from the current terminal
         if not self.__term:
@@ -58,9 +57,11 @@ class GnuplotFigure(object):
                 raise GnuplotError(error_msg % str(e))
 
         self.__title = title
-        self.__options = options
+        self.__options = options or ()
         self.__output = output
-        self.__size = size
+        self.__term_line = '{term}{sp}{id}'.format(term=self.__term,
+                                                   sp=' ' if self.__id else '',
+                                                   id=str(self.__id or ''))
         self.__settings = []
         self.__plots = []
         self.__splots = []
@@ -70,26 +71,23 @@ class GnuplotFigure(object):
         self.__title = title
 
     def setOptions(self, options):
-        self.__options = options
+        self.__options = options or ()
 
     def setOutput(self, output):
         self.__output = output
 
-    def setSize(self, size):
-        self.__size = size
-
     title = property(lambda self: self.__title, setTitle)
     options = property(lambda self: self.__options, setOptions)
     output = property(lambda self: self.__output, setOutput)
-    size = property(lambda self: self.__size, setSize)
+    size = property(lambda self: self.__size)
     id = property(lambda self: self.__id)
     term = property(lambda self: self.__term)
 
     def set(self, setting, *args):
         if setting in self.__protected_settings:
             raise TypeError("'%s' can't be set this way, please use the `title`"
-                            ", `options`, `size` and `output` properties, their"
-                            "setters or create a new Figure.")
+                            ", `options` and `output` properties, their setters"
+                            "or create a new Figure.")
         self.__unsafeSet(setting, *args)
 
     def __unsafeSet(self, setting, *args):
@@ -100,13 +98,12 @@ class GnuplotFigure(object):
 
     def reset(self):
         self.flush()
+        options = ' '.join(map(str, self.__options))
+        self.__unsafeSet('term',
+                         '{term}{sp}{options}'.format(term=self.__term_line,
+                                                      sp=' ' if options else '',
+                                                      options=options))
         self.__settings.append('reset')
-        self.__unsafeSet('term', self.__term, str(self.__id))
-        if self.__size:
-            self.__unsafeSet('size', ', '.join(map(str, self.__size)))
-        if self.__options:
-            for opt in self.__options:
-                self.__unsafeSet('termoption', opt)
         if self.__output: self.__unsafeSet('output', '"' + self.__output + '"')
         if self.__title: self.__unsafeSet('title', '"' + self.__title + '"')
 
@@ -150,7 +147,8 @@ class GnuplotFigure(object):
         self.__addPlot(self.__splots, *datas, **kwargs)    
 
     def wait(self, timeout=None):
-        wait_evt = (self.__term + '_' + str(self.__id), 'Close')
+        wait_evt = (self.__term + ('_' + str(self.__id) if self.__id else ''),
+                    'Close')
         self.__context.wait((wait_evt,), timeout=timeout)
 
     def submit(self, wait=False, timeout=-1,
@@ -160,6 +158,7 @@ class GnuplotFigure(object):
         splotLine = ('splot ' + ', '.join(self.__splots),) \
                     if self.__splots else ()
         self.__context.cmd('set term push', timeout=self.__context.NO_WAIT)
+        self.__unsafeSet('term', self.__term_line)
         res = None
         try:
             res = self.__context.send(itertools.chain(self.__settings,
