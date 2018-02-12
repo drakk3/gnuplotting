@@ -188,10 +188,10 @@ class GnuplotNamespace(Namespace):
         self.pop(name, None)
 
     def clear(self, timeout=-1):
-        self.__context.send(map(lambda e: self.pop(e[0]) and \
-                                          'undefine ' + e[1].gnuplot_id,
+        self.__context.send(map(lambda e: 'undefine ' + e[1].gnuplot_id,
                                 self.items()),
                             timeout=timeout)
+        super(GnuplotNamespace, self).clear()
 
 class GnuplotVariableNamespace(GnuplotNamespace):
     def __init__(self, context):

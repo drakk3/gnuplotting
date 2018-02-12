@@ -179,12 +179,12 @@ class GnuplotContext(object):
 
         """
         try:
-            self.__vars.clear()
-            self.__funs.clear()
+            self.__vars.clear(timeout=self.NO_WAIT)
+            self.__funs.clear(timeout=self.NO_WAIT)
         except ValueError:
-            # The pipe may already been closed, silent the error
+            # The pipe may have already been close : silent the error
             pass
-
+    
     def quit(self):
         """ Send the `quit` command to gnuplot
 
@@ -318,7 +318,7 @@ class GnuplotContext(object):
         ...     fig1.submit(timeout=5)
         ...     fig2 = gp.Figure(title='Another awesome figure', id=1)#, term='wxt')
         ...     gp.funs.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
-        ...     fig2.splot(gp.funs.f['x', 'y'], _with='pm3d')
+        ...     fig2.splot(gp.funs.f['x', 'y'], _with='linespoints')
         ...     fig2.submit(timeout=5, wait=True)
         ...
 
