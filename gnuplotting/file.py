@@ -48,8 +48,8 @@ class GnuplotFile(GnuplotContext):
         self.send = self.write
 
     def terminate(self):
+        super(GnuplotFile, self).terminate()
         self.close()
-        return super(GnuplotFile, self).terminate()
     
     def close(self):
         self.__backend.close()

@@ -226,8 +226,9 @@ class GnuplotProcess(GnuplotContext):
 
 
     def terminate(self):
+        super(GnuplotProcess, self).terminate()
         self.stop()
-        return super(GnuplotProcess, self).terminate()
+        
 
     def __print(self, to_print):
         return 'printerr %s' % to_print
