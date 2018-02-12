@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding utf-8 -*-
 
-# Python port of http://gnuplot.info/scripts/99bottles.gp
+from __future__ import print_function
+
+
+""" Python port of http://gnuplot.info/scripts/99bottles.gp """
 
 if __name__ == '__main__':
 
