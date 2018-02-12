@@ -198,7 +198,7 @@ class GnuplotVariableNamespace(GnuplotNamespace):
         super(GnuplotVariableNamespace, self).__init__(context)
 
     def __setattr__(self, name, value):
-        if value and not isinstance(value, GnuplotDefinable):
+        if value is not None and not isinstance(value, GnuplotDefinable):
             value = GnuplotVariable(self, value)
         if not isinstance(value, (GnuplotVariable, type(None))):
             raise TypeError('This namespace is reserved for variable '
