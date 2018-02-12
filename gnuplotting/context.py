@@ -280,10 +280,13 @@ class GnuplotContext(object):
     def function(self, args, body):
         return GnuplotFunction(self.vars, args, body)
     
-    def Figure(self, id=None, title=None,
-               term=None, options=None, output=None):
+    def Figure(self, term=None, id=None, title=None, size=None,
+               options=None, output=None):
         """Create a new Gnuplot figure
 
+        :param term:
+            :type: `str`
+            Gnuplot terminal to use, defaults to the current terminal
         :param id:
             :type: `int`
             Id of the figure, it mirrors the gnuplot window id, defaults to a
@@ -291,9 +294,9 @@ class GnuplotContext(object):
         :param title:
             :type: `str`
             Title of the figure, defaults to no title
-        :param term:
-            :type: `str`
-            Gnuplot terminal to use, defaults to the current terminal
+        :param size:
+            :type: `2-tuple`
+            A size tuple (width, height)
         :param options:
             :type: `tuple of str`
             Gnuplot termoptions to use for the figure, defaults to no options
@@ -314,5 +317,5 @@ class GnuplotContext(object):
         ...
 
         """
-        return GnuplotFigure(self, id=id, title=title, term=term,
+        return GnuplotFigure(self, term=term, id=id, title=title, size=size,
                              options=options, output=output)

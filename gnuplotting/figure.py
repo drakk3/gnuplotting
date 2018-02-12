@@ -28,12 +28,12 @@ from .utils import CallableGenerator
 class GnuplotFigure(object):
 
     __uniqueId = CallableGenerator(LockedGenerator(itertools.count(0, 1)))
-    __forbidden_settings = frozenset(('term', 'terminal', 'termoption',
-                                      'title', 'output'))
+    __protected_settings = frozenset(('term', 'terminal', 'termoption',
+                                      'title', 'output', 'size'))
     __term_desc_prefix = 'terminal type is '
 
-    def __init__(self, context, id=None, title=None,
-                 term=None, options=None, output=None): 
+    def __init__(self, context, term=None, id=None, title=None, size=None,
+                 options=None, output=None): 
         super(GnuplotFigure, self).__init__()
         self.__context = context
         self.__id = id or self.__uniqueId()
@@ -60,6 +60,7 @@ class GnuplotFigure(object):
         self.__title = title
         self.__options = options
         self.__output = output
+        self.__size = size
         self.__settings = []
         self.__plots = []
         self.__splots = []
@@ -74,91 +75,99 @@ class GnuplotFigure(object):
     def setOutput(self, output):
         self.__output = output
 
+    def setSize(self, size):
+        self.__size = size
+
     title = property(lambda self: self.__title, setTitle)
     options = property(lambda self: self.__options, setOptions)
     output = property(lambda self: self.__output, setOutput)
+    size = property(lambda self: self.__size, setSize)
     id = property(lambda self: self.__id)
     term = property(lambda self: self.__term)
 
     def set(self, setting, *args):
-        if setting in self.__forbidden_settings:
+        if setting in self.__protected_settings:
             raise TypeError("'%s' can't be set this way, please use the `title`"
-                            ", `options` and `output` properties, their setters"
-                            " or create a new Figure.")
+                            ", `options`, `size` and `output` properties, their"
+                            "setters or create a new Figure.")
         self.__unsafeSet(setting, *args)
 
     def __unsafeSet(self, setting, *args):
-        self.__settings.append('set {} {}'.format(setting,
-                                                  ' '.join(map(str, args))))
-
-    def unset(self, setting):
-        self.__settings.append('unset ' + setting)
+        _args = tuple(itertools.takewhile(lambda arg: not arg is None, args))
+        cmd = 'unset' if len(_args) != len(args) else 'set'
+        _args = (setting,) + _args
+        self.__settings.append('{} {}'.format(cmd, ' '.join(map(str, _args))))
 
     def reset(self):
-        del self.__settings[:]
-        del self.__plots[:]
-        del self.__splots[:]
-        self.__unsafeSet('term', self.__term, str(self.__id))
+        self.flush()
         self.__settings.append('reset')
+        self.__unsafeSet('term', self.__term, str(self.__id))
+        if self.__size:
+            self.__unsafeSet('size', ', '.join(map(str, self.__size)))
         if self.__options:
             for opt in self.__options:
                 self.__unsafeSet('termoption', opt)
         if self.__output: self.__unsafeSet('output', '"' + self.__output + '"')
         if self.__title: self.__unsafeSet('title', '"' + self.__title + '"')
 
-    def splot(self, *datas, **kwargs):
-        _for = kwargs.pop('_for', None)
-        _with = kwargs.pop('_with', None)
-        using = kwargs.pop('using', None)
-        title = kwargs.pop('title', None)
-        _for = 'for {} '.format(_for) if _for else ''
-        using = 'using {} '.format(using) if using else ''
-        _with = 'with {} '.format(_with) if _with else ''
-        title = 'title "{}"'.format(title) if title else ''
-        suffix = ' ' + using + _with + title
-        self.__splots.extend(map(lambda i, data:
-                                (_for if i == 0 else '') + \
-                                 data + suffix,
-                                (i for i in range(len(datas))),
-                                datas))
+    def flush(self, settings=True, plots=True, splots=True):
+        if settings: del self.__settings[:]
+        if plots: del self.__plots[:]
+        if splots: del self.__splots[:]
 
-    def plot(self, *datas, **kwargs):
-        _for = kwargs.pop('_for', None)
-        _range = kwargs.pop('sampling_range', '')
-        axes = kwargs.pop('axes', None)
-        _with = kwargs.pop('_with', None)
-        using = kwargs.pop('using', None)
-        title = kwargs.pop('title', None)
-        _for = 'for {} '.format(_for) if _for else ''
+    def __plotElement(self, i, data, elem_args, global_args):
+        _for = elem_args.pop('_for', global_args.get('_for', None))
+        _range = elem_args.pop('sampling_range',
+                              global_args.get('sampling_range', None))
+        axes = elem_args.pop('axes', global_args.get('axes', None))
+        _with = elem_args.pop('_with', global_args.get('_with', None))
+        using = elem_args.pop('using', global_args.get('using', None))
+        title = elem_args.pop('title', global_args.get('title', None))
+        _for = 'for {} '.format(_for) if (_for and i == 0) else ''
+        _range = 'sample {} '.format(_range) \
+                 if (_range and i == 0 and len(self.__plots) == 0) \
+                    else (_range + ' ' if _range else '')
         axes = 'axes {} '.format(axes) if axes else ''
         using = 'using {} '.format(using) if using else ''
         _with = 'with {} '.format(_with) if _with else ''
         title = 'title "{}"'.format(title) if title else ''
-        suffix = ' ' + axes + using + _with + title
-        self.__plots.extend(map(lambda i, data:
-                                (_for if i == 0 else '') + \
-                                ('sample ' + _range \
-                                     if i == 0 and _range \
-                                               and len(self.__plots) == 0\
-                                     else _range) + \
-                                data + suffix,
-                                (i for i in range(len(datas))),
-                                datas))
+        return _for + _range + data + ' ' + axes + using + _with + title
+
+    def __addPlot(self, plot_list, *datas, **kwargs):
+        iterator = lambda: (i for i in range(len(datas)))
+        plot_list.extend(map(lambda i, data, data_args:
+                             self.__plotElement(i, data, data_args, kwargs),
+                             iterator(),
+                             (datas[i][0] if isinstance(datas[i], tuple) \
+                              else datas[i] for i in iterator()),
+                             (datas[i][1] if isinstance(datas[i], tuple) \
+                              else {} for i in iterator())))
+
+    def plot(self, *datas, **kwargs):
+        self.__addPlot(self.__plots, *datas, **kwargs)
+    
+    def splot(self, *datas, **kwargs):
+        self.__addPlot(self.__splots, *datas, **kwargs)    
 
     def wait(self, timeout=None):
         wait_evt = (self.__term + '_' + str(self.__id), 'Close')
         self.__context.wait((wait_evt,), timeout=timeout)
 
-    def submit(self, wait=False, timeout=-1, reset=False):
+    def submit(self, wait=False, timeout=-1,
+               flush_settings=True, flush_plots=True, flush_splots=True,
+               reset=False):
         plotLine = ('plot ' + ', '.join(self.__plots),) if self.__plots else ()
         splotLine = ('splot ' + ', '.join(self.__splots),) \
                     if self.__splots else ()
         self.__context.cmd('set term push', timeout=self.__context.NO_WAIT)
+        res = None
         try:
-            self.__context.send(itertools.chain(self.__settings,
-                                                plotLine, splotLine),
-                                timeout=timeout)
+            res = self.__context.send(itertools.chain(self.__settings,
+                                                      plotLine, splotLine),
+                                      timeout=timeout)
             if wait: self.wait(wait if not isinstance(wait, bool) else None)
+            self.flush(flush_settings, flush_plots, flush_splots)
             if reset: self.reset()
         finally:
             self.__context.cmd('set term pop', timeout=self.__context.NO_WAIT)
+        return res
