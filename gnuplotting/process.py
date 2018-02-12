@@ -356,12 +356,12 @@ class GnuplotProcess(GnuplotContext):
         :param evts:
             :type: `iterable` of `2-tuple`
             Each tuple describe an event to wait for and must conform to the
-            following shape : ('<term_type>_<window_id>, '<event_name>').
+            following shape : ('<term_type>[_<window_id>], '<event_name>').
 
             Example :
-                ('qt_0': 'Close')
-                    Represents the Close event for the window '0' of the qt
-                    terminal
+                ('qt': 'Close')
+                    Represents the Close event for the current window of the
+                    qt terminal
                 ('wxt_1': 'ctrl-a')
                     Represents the "ctrl-a" keypress event inside the '1'
                     window of the wxt terminal
@@ -432,7 +432,7 @@ class GnuplotProcess(GnuplotContext):
                 for (term, evt) in evts:
                     term_spec = term.split('_')
                     term_name = term_spec[0]
-                    term_id = int(term_spec[1])
+                    term_id = int(term_spec[1]) if len(term_spec) > 1 else '' 
                     bind_evt = 'bind ' + evt
                     evt_id = self.__genCmdId()
                     evt_token = self.__EVENT_TOKEN.format(id=self.id, event=evt,
@@ -443,7 +443,7 @@ class GnuplotProcess(GnuplotContext):
                                                                evt_token))
                 
                     # Switching to the target terminal window
-                    self.cmd('set term %s %d' % (term_name, term_id),
+                    self.cmd('set term {} {}'.format(term_name, term_id),
                              timeout=self.NO_WAIT)
                     # Force it to raise with 'refresh', it's dirty but 'raise'
                     # is not reliable

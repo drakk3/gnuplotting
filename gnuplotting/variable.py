@@ -134,13 +134,13 @@ class GnuplotNamespace(Namespace):
     >>> with Gnuplot() as gp:
     ...     gp.vars.max = 99                          # define 'max' variable
     ...     print(gp.vars.max)                        # retrieve 'max' value
-    ...     gp.vars.f = gp.function(['x'], 'x + 1')   # define 'f(x)' function
-    ...     print(gp.vars.f.arity)
-    ...     print(gp.vars.f.gnuplot_id)
-    ...     print(gp.vars.f(1))                       # evaluate 'f(1)'
+    ...     gp.funs.f = gp.function(['x'], 'x + 1')   # define 'f(x)' function
+    ...     print(gp.funs.f.arity)
+    ...     print(gp.funs.f.gnuplot_id)
+    ...     print(gp.funs.f(1))                       # evaluate 'f(1)'
     ...     gp.vars.max = 10.0                        # set 'max' value to 10
     ...     print(gp.vars.max)                        # retrieve 'max' new value
-    ...     print(gp.vars.f(10))                      # evaluate 'f(10)'
+    ...     print(gp.funs.f(10))                      # evaluate 'f(10)'
     ...     gp.vars.max = None                        # undefine 'max'
     ...     try:
     ...         gp.vars.max
@@ -157,23 +157,21 @@ class GnuplotNamespace(Namespace):
 
     """
     def __init__(self, context):
-        super(GnuplotNamespace, self).__init__(__context=context)
+        super(GnuplotNamespace, self).__init__(_GnuplotNamespace__context=context)
 
+    
     def __setattr__(self, name, value):
         if value is None:
             if name in self:
                 self.pop(name).destroy()
         else:
-            obj = value
-            if not isinstance(value, GnuplotDefinable):
-                obj = GnuplotVariable(self, value)
-            obj.name = name
-            super(GnuplotNamespace, self).__setattr__(name, obj)
+            value.name = name
+            super(GnuplotNamespace, self).__setattr__(name, value)
                 
     def eval(self, name, expr):
         value = self.__context.cmd('if(exists("{name}")) printerr {expr} ; ' \
-                                   'else printerr "    line 0: \'{name}\' is not '
-                                   'defined'.format(name=name, expr=expr))
+                                   'else printerr "    line 0: \'{name}\' is ' \
+                                   'not defined'.format(name=name, expr=expr))
         if value:
             if value.isdigit():
                 return int(value)
@@ -189,11 +187,31 @@ class GnuplotNamespace(Namespace):
         self.__context.cmd('undefine ' + gnuplot_id)
         self.pop(name, None)
 
-    
     def clear(self, timeout=-1):
         self.__context.send(map(lambda e: self.pop(e[0]) and \
                                           'undefine ' + e[1].gnuplot_id,
                                 self.items()),
                             timeout=timeout)
 
+class GnuplotVariableNamespace(GnuplotNamespace):
+    def __init__(self, context):
+        super(GnuplotVariableNamespace, self).__init__(context)
 
+    def __setattr__(self, name, value):
+        if value is not None and not isinstance(value, GnuplotDefinable):
+            value = GnuplotVariable(self, value)
+        if not isinstance(value, (GnuplotVariable, type(None))):
+            raise TypeError('This namespace is reserved for variable '
+                            'definitions, given {}'.format(type(value)))
+        super(GnuplotVariableNamespace, self).__setattr__(name, value)
+
+
+class GnuplotFunctionNamespace(GnuplotNamespace):
+    def __init__(self, context):
+        super(GnuplotFunctionNamespace, self).__init__(context)
+
+    def __setattr__(self, name, value):
+        if value and not isinstance(value, GnuplotFunction):
+            raise TypeError('This namespace is reserved for function '
+                            'definitions, given {}'.format(type(value)))
+        super(GnuplotFunctionNamespace, self).__setattr__(name, value)

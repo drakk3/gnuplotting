@@ -22,7 +22,8 @@ import itertools
 
 from .platform import print_function, unicode
 from .figure import GnuplotFigure
-from .variable import GnuplotNamespace, GnuplotFunction
+from .variable import (GnuplotVariableNamespace, GnuplotFunctionNamespace,
+                       GnuplotFunction)
 
 
 class GnuplotContext(object):
@@ -32,9 +33,11 @@ class GnuplotContext(object):
 
     def __init__(self):
         super(GnuplotContext, self).__init__()
-        self.__vars = GnuplotNamespace(self)
+        self.__vars = GnuplotVariableNamespace(self)
+        self.__funs = GnuplotFunctionNamespace(self)
 
     vars = property(lambda self: self.__vars)
+    funs = property(lambda self: self.__funs)
 
     def __enter__(self):
         return self
@@ -175,8 +178,12 @@ class GnuplotContext(object):
         ...
 
         """
-        try: self.__vars.clear()
-        except ValueError: pass
+        try:
+            self.__vars.clear()
+            self.__funs.clear()
+        except ValueError:
+            # The pipe may already been closed, silent the error
+            pass
 
     def quit(self):
         """ Send the `quit` command to gnuplot
@@ -280,10 +287,12 @@ class GnuplotContext(object):
     def function(self, args, body):
         return GnuplotFunction(self.vars, args, body)
     
-    def Figure(self, id=None, title=None,
-               term=None, options=None, output=None):
+    def Figure(self, term=None, id=None, title=None, options=None, output=None):
         """Create a new Gnuplot figure
 
+        :param term:
+            :type: `str`
+            Gnuplot terminal to use, defaults to the current terminal
         :param id:
             :type: `int`
             Id of the figure, it mirrors the gnuplot window id, defaults to a
@@ -291,9 +300,9 @@ class GnuplotContext(object):
         :param title:
             :type: `str`
             Title of the figure, defaults to no title
-        :param term:
-            :type: `str`
-            Gnuplot terminal to use, defaults to the current terminal
+        :param size:
+            :type: `2-tuple`
+            A size tuple (width, height)
         :param options:
             :type: `tuple of str`
             Gnuplot termoptions to use for the figure, defaults to no options
@@ -303,16 +312,16 @@ class GnuplotContext(object):
 
         >>> from .gnuplot import Gnuplot
         >>> with Gnuplot() as gp:
-        ...     fig1 = gp.Figure(title='My awesome figure')#, term='wxt')
+        ...     fig1 = gp.Figure(title='My awesome figure', id=0)#, term='wxt')
         ...     fig1.plot('sin(x)', _with='linespoints')
         ...     fig1.plot('tan(x)', sampling_range='[-pi:pi]', title='tan(x)')
         ...     fig1.submit(timeout=5)
-        ...     fig2 = gp.Figure(title='Another awesome figure')#, term='wxt')
-        ...     gp.vars.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
-        ...     fig2.splot(gp.vars.f['x', 'y'], _with='pm3d')
+        ...     fig2 = gp.Figure(title='Another awesome figure', id=1)#, term='wxt')
+        ...     gp.funs.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
+        ...     fig2.splot(gp.funs.f['x', 'y'], _with='pm3d')
         ...     fig2.submit(timeout=5, wait=True)
         ...
 
         """
-        return GnuplotFigure(self, id=id, title=title, term=term,
+        return GnuplotFigure(self, term=term, id=id, title=title,
                              options=options, output=output)

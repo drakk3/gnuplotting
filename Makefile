@@ -15,40 +15,47 @@
 # You should have received a copy of the GNU General Public License
 # along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
 
+cmd = $(word 1,$(MAKECMDGOALS))
+$(cmd)_args = $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+$(eval $($(cmd)_args):;@:)
 
-args = $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
-$(eval $(args):;@:)
-
-env = build/venv
-python_dev_bin = $(env)/$(PYTHON)/bin
-python_dev = $(python_dev_bin)/python
-wheel_dev = $(python_dev_bin)/wheel
-pip_dev = $(python_dev_bin)/pip
 py_src = gnuplotting/*.py
 
-$(python_dev):
+ifdef DEV_ENV
+# DEV part of the Makefile
+env_dir = build/env
+python_bin = $(env_dir)/$(DEV_ENV)/bin
+python = $(python_bin)/python
+wheel = $(python_bin)/wheel
+pip_dev = $(python_bin)/pip
+
+$(python):
 	pip install --user 'virtualenv>=15.1.0'
-	virtualenv --no-site-packages $(env)/$(PYTHON) --python=$(PYTHON)
+	virtualenv --no-site-packages $(env_dir)/$(DEV_ENV) --python=$(DEV_ENV)
 
-$(wheel_dev): $(python_dev) $(pip_dev)
-	$(pip_dev) install -r requirements.txt
+$(wheel): $(python) $(pip)
+	$(pip) install -r requirements.txt
 
-venv: $(python_dev) $(wheel_dev)
+init_env: $(python) $(wheel)
 
-test: venv $(py_src)
-	$(python_dev) -B setup.py test $(args)
 
-dist_dev: test
-	$(python_dev) -B setup.py bdist_wheel $(args)
+test: init_env $(py_src)
+	$(python) -B setup.py test $(test_args)
 
-install_dev: dist_dev
-	$(python_dev) setup.py install $(args)
+else
+# User part of the Makefile
+python ?= python
+
+test:
+	$(info Nothing to do)
+
+endif
 
 dist:
-	python setup.py bdist_wheel $(args)
+	$(python) -B setup.py bdist_wheel $(dist_args)
 
 install: dist
-	python setup.py install $(args)
+	$(python) -B setup.py install $(install_args)
 
 clean:
-	rm -f build dist __pycache__
+	$(RM) -r build dist __pycache__
