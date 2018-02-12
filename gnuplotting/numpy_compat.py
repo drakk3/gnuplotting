@@ -34,8 +34,7 @@ except ImportError:
     from .utils import iterable
 
     warnings.warn("Numpy isn't available on this environment, falls back to raw"
-                  " Python mode. Note that this can be significantly slower",
-                  stacklevel=2)
+                  " Python mode. Note that this can be significantly slower")
     
     ufunc = type(None)
     newaxis = None
