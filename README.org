@@ -75,14 +75,14 @@ with gnuplotting.Gnuplot(defaultTimeout=1) as gp:
 * Backlog
 #+TODO: TODO DOING FEEDBACK VERIFY | DONE CANCELED
 *** DOING Provide a consistent API to pass Python datas
-    - [X] Variables
+    - [X] Variables and functions
     - [-] Tabulated functions
     - [-] Arrays (Numpy compatible)
       + [-] As Gnuplot Data blocks
       + [-] As Gnuplot arrays 
-*** DOING Provide a consitent API to style each plot
+*** FEEDBACK Provide a consitent API to style each plot
     - [X] Per plot styling
-    - [-] Global figure styling
+    - [X] Global figure styling
 *** TODO Enable the use of multiplot
 *** TODO Enable the use of fit
 *** TODO Provide a consistent API to stream datas in real-time
