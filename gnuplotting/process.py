@@ -198,7 +198,10 @@ class GnuplotProcess(GnuplotContext):
                                              self.NO_WAIT, self.id)
         self.__reader.start()
         self.version = lambda: self.cmd(self.__print('GPVAL_VERSION'))
-        self.supportsTimeout = lambda: True
+
+    @property
+    def isinteractive(self):
+        return True
 
     def stop(self):
         """Stop the gnuplot process

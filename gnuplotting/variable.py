@@ -22,6 +22,28 @@ from .platform import map, print_function
 
 
 class GnuplotDefinable(object):
+    """An abstract class for gnuplot values than can be created and accessed
+    from Python
+
+    :param ns:
+        :type: `GnuplotNamespace`
+        The namespace where the value live
+
+    :attr gnuplot_id:
+        :type: `str`
+        Value ID given by Gnuplot
+    :attr name:
+        :type; `str`
+        Value name in the namespace
+    :attr qualname:
+        :type: `str`
+        Value qualified name, for variable it equals to `name`. For function it
+        equals to `name`(`args ...`)
+    :attr expr:
+        :type: `str`
+        Definition expression of this value.
+
+    """
     def __init__(self, ns):
         super(GnuplotDefinable, self).__init__()
         self.__name = None
@@ -37,6 +59,7 @@ class GnuplotDefinable(object):
         return self.__name
 
     def destroy(self):
+        """Delete `self` from it's namespace and Gnuplot"""
         self.__ns.undefine(self.name, self.gnuplot_id)
         self.__ns = None
 
@@ -52,6 +75,17 @@ class GnuplotDefinable(object):
 
 
 class GnuplotFunction(GnuplotDefinable):
+    """A Gnuplot function defined in Python
+
+    :param ns:
+        :type: `GnuplotFunctionNamespace`
+        The namespace where live this function
+
+    :attr arity:
+        :type: `int`
+        Arity of this function
+
+    """
     def __init__(self, ns, args, body):
         super(GnuplotFunction, self).__init__(ns)
         self.__args = args
@@ -76,17 +110,51 @@ class GnuplotFunction(GnuplotDefinable):
         return self.__body
 
     def __call__(self, *args):
+        """Tells Gnuplot to evaluate this function
+
+        :param args:
+            :type: `iterable`
+            Call arguments
+
+        :returns:
+            The evaluation of this function agains the given arguments
+
+        """
         expr = self.name + '(' + self.__formatArgs(args) + ')'
         return self.ns.eval(self.gnuplot_id, expr)
 
     def pack(self, *args):
+        """Return the expression that packs the given args into a call to `self`
+
+        :param args:
+            :type: `iterable of str`
+            The name of the arguments to pack into a call expression
+        :returns:
+            the call expression
+
+        Example:
+        if self.name = 'f' and args = ('x', 'y', 'z') returns 'f(x, y, z)'
+        This is useful when calling a function with different argument names
+        than those used in the definition.
+
+        """
         return self.name + '(' + self.__formatArgs(args) + ')'
 
     def __getitem__(self, args):
+        """A shorthand and syntactic sugar for pack
+
+        .. see::
+            `GnuplotFunction.pack`
+
+        Example:
+        f.pack('x', 'y', 'z') --> 'f(x, y, z)'
+
+        """
         return self.pack(*args)
 
 
 class GnuplotVariable(GnuplotDefinable):
+    """A Gnuplot variable accessible from Python"""
     def __init__(self, ns, value):
         super(GnuplotVariable, self).__init__(ns)
         self.__value = value
@@ -122,7 +190,7 @@ class Namespace(dict):
     
 
 class GnuplotNamespace(Namespace):
-    """A Context that manages the access of Gnuplot variables and functions
+    """A namespace that manages access to Gnuplot variables and functions
 
     :param context:
         :type: `GnuplotContext`
@@ -141,6 +209,7 @@ class GnuplotNamespace(Namespace):
     ...     gp.vars.max = 10.0                        # set 'max' value to 10
     ...     print(gp.vars.max)                        # retrieve 'max' new value
     ...     print(gp.funs.f(10))                      # evaluate 'f(10)'
+    ...     print(gp.funs.f['a', 'b'])
     ...     gp.vars.max = None                        # undefine 'max'
     ...     try:
     ...         gp.vars.max
@@ -154,6 +223,7 @@ class GnuplotNamespace(Namespace):
     2
     10.0
     11
+    f(a, b)
 
     """
     def __init__(self, context):
@@ -169,6 +239,19 @@ class GnuplotNamespace(Namespace):
             super(GnuplotNamespace, self).__setattr__(name, value)
                 
     def eval(self, name, expr):
+        """Evaluate an expression inside Gnuplot
+
+        :param name:
+            :type: `str`
+            Name of the value to evaluate
+        :param expr:
+            :type: `str`
+            Expression to evaluate
+
+        :returns:
+            The evaluation's result
+
+        """
         value = self.__context.cmd('if(exists("{name}")) printerr {expr} ; ' \
                                    'else printerr "    line 0: \'{name}\' is ' \
                                    'not defined'.format(name=name, expr=expr))
@@ -181,19 +264,50 @@ class GnuplotNamespace(Namespace):
         return None
 
     def define(self, name, expr):
+        """Define a value in Gnuplot
+
+        :param name:
+            :type: `str`
+            Name of the value to define
+        :param expr:
+            :type: `str`
+            The definition expression
+
+        """
         self.__context.cmd(name + ' = ' + expr)
 
     def undefine(self, name, gnuplot_id):
+        """Undefine a value in Gnuplot
+
+        The value is removed from Gnuplot and it's namespace
+
+        :param name:
+            :type: `str`
+            Name of the value to delete
+        :param gnuplot_id:
+            :type: `str`
+            It's Gnuplot ID
+
+        """
         self.__context.cmd('undefine ' + gnuplot_id)
         self.pop(name, None)
 
     def clear(self, timeout=-1):
+        """Clear the namespace
+
+        :param timeout:
+            :type: `Number or None`
+            Number of seconds to wait for a Gnuplot response, defaults to
+            `GnuplotContext.defaultTimeout`
+
+        """
         self.__context.send(map(lambda e: 'undefine ' + e[1].gnuplot_id,
                                 self.items()),
                             timeout=timeout)
         super(GnuplotNamespace, self).clear()
 
 class GnuplotVariableNamespace(GnuplotNamespace):
+    """A Gnuplot namespace that holds variables"""
     def __init__(self, context):
         super(GnuplotVariableNamespace, self).__init__(context)
 
@@ -207,6 +321,7 @@ class GnuplotVariableNamespace(GnuplotNamespace):
 
 
 class GnuplotFunctionNamespace(GnuplotNamespace):
+    """A Gnuplot namespace that holds functions"""
     def __init__(self, context):
         super(GnuplotFunctionNamespace, self).__init__(context)
 

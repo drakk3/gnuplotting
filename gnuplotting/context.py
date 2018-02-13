@@ -27,7 +27,22 @@ from .variable import (GnuplotVariableNamespace, GnuplotFunctionNamespace,
 
 
 class GnuplotContext(object):
+    """A base class that manages a 2-way communication with Gnuplot
 
+    Subclasses must implement the `isinteractive` property and the `send` method
+
+    :attr vars:
+        :type: `GnuplotVariableNamespace`
+        A namespace that holds variables shared with Gnuplot
+    :attr funs:
+        :type: `GnuplotFunctionNamespace`
+        A namespace that holds functions shared with Gnuplot
+    :attr NO_WAIT:
+        :type: `float`
+        A special timeout value that means don't wait for a response
+
+    
+    """
     NO_WAIT = float()
     __FLUSH_INTERACTIVE = lambda self: ('' for c in os.linesep * 50)
 
@@ -38,6 +53,11 @@ class GnuplotContext(object):
 
     vars = property(lambda self: self.__vars)
     funs = property(lambda self: self.__funs)
+
+    @property
+    def isinteractive(self):
+        """Tells if this context is capable of interactions with Gnuplot"""
+        raise NotImplementedError
 
     def __enter__(self):
         return self
@@ -50,6 +70,20 @@ class GnuplotContext(object):
         kwargs.pop(key, True)
 
     def send(self, lines, **kwargs):
+        """Send some lines to Gnuplot for evaluation
+
+        :param lines:
+            :type: `iterable(str)`
+            Lines to send
+        :param kwargs:
+            :type: `argument mapping`
+            Additionnal arguments to pass to the Gnuplot context. The most
+            common used is `timeout`
+
+        :returns:
+            The result from the Gnuplot backend if any
+
+        """
         raise NotImplementedError
 
     def cmd(self, cmd, inline_data=(), **kwargs):
@@ -65,7 +99,8 @@ class GnuplotContext(object):
             An iterable of data string to send to gnuplot as inline data.
         :param kwargs:
             :type `mapping`:
-            Optionnal arguments to pass to `GnuplotContext.send`
+            Optionnal arguments to pass to `GnuplotContext.send`. A commonly
+            used one is `timeout`.
 
         :returns:
             The output if any given by gnuplot after evaluation of the
@@ -98,7 +133,6 @@ class GnuplotContext(object):
         ...     # NO_WAIT is used to avoid hanging
         ...     gp.cmd('quit', timeout=gp.NO_WAIT)
         ...
-        ...
 
         """
         # Argument checking
@@ -109,7 +143,7 @@ class GnuplotContext(object):
             raise TypeError("'inline_data' argument must be an iterable")
         return self.send(itertools.chain((cmd,), inline_data), **kwargs)
 
-    def interactiveCmd(self, cmd, *args, **kwargs):
+    def iCmd(self, cmd, *args, **kwargs):
         """Run a Gnuplot interactive command
 
         :param cmd:
@@ -139,7 +173,7 @@ class GnuplotContext(object):
         >>> from .gnuplot import Gnuplot
         >>> with Gnuplot() as gp: # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
         ...     # An example with a timeout
-        ...     print(gp.interactiveCmd('help', 'fit', timeout=0.5))
+        ...     print(gp.iCmd('help', 'fit', timeout=0.5))
         ...
         The `fit` ...
 
@@ -147,9 +181,6 @@ class GnuplotContext(object):
         self.__ignoreKwarg('inline_data', **kwargs)
         return self.cmd(cmd + ' ' + ' '.join(map(str, args)),
                         inline_data=self.__FLUSH_INTERACTIVE(), **kwargs)
-
-    def supportsTimeout(self):
-        raise NotImplementedError
 
     def terminate(self):
         """Terminate the current gnuplot context.
@@ -230,14 +261,44 @@ class GnuplotContext(object):
         Syntax: ...
 
         """
-        return self.interactiveCmd('help', *topics, **kwargs) 
+        return self.iCmd('help', *topics, **kwargs) 
 
     def show(self, *topics, **kwargs):
-        return self.interactiveCmd('show', *topics, **kwargs)
+        """The Gnuplot's show command
+
+        :param topics:
+            :type: `iterable(str)`
+            A collection of topics to search for
+        :param kwargs:
+            :type: dict
+            Optional parameters used by ``Gnuplot.cmd``
+
+        :returns:
+            The Gnuplot's output
+
+        ..note::
+            `inline_data` in kwargs is always ignored
+
+
+        Example:
+
+        >>> from .gnuplot import Gnuplot
+        >>> with Gnuplot() as gp: # doctest: +SKIP
+        ...     print(gp.show('isosamples'))
+        iso sampling rate is ...
+
+        >>> with Gnuplot() as gp: # doctest: +SKIP
+        ...     # we can't retrieve the output here, since we use NO_WAIT
+        ...     gp.shell('echo "hello"', timeout=gp.NO_WAIT)
+        ...     # To exit the shell command we must send exit as a regular
+        ...     # command and tweak with the sync parameter
+        ...     gp.cmd('exit', sync=(gp.OSECHO, gp.PRINTERR))
+        """
+        return self.iCmd('show', *topics, **kwargs)
 
 
     def shell(self, *shell_cmds, **kwargs):
-        """Use the gnuplot shell command
+        """The Gnuplot's shell command
 
         :param shell_cmds:
             :type: `iterable(str)`
@@ -285,6 +346,19 @@ class GnuplotContext(object):
         return res
 
     def function(self, args, body):
+        """Return a function that can be bound to a name in Gnuplot
+
+        :param args:
+            :type: `iterable of str`
+            Arguments specificatition of the funtion
+        :param body:
+            :type: `str`
+            Body of the function
+
+        :returns:
+           An unbound GnuplotFunction
+
+        """
         return GnuplotFunction(self.vars, args, body)
     
     def Figure(self, term=None, id=None, title=None, options=None, output=None):
@@ -300,9 +374,6 @@ class GnuplotContext(object):
         :param title:
             :type: `str`
             Title of the figure, defaults to no title
-        :param size:
-            :type: `2-tuple`
-            A size tuple (width, height)
         :param options:
             :type: `tuple of str`
             Gnuplot termoptions to use for the figure, defaults to no options
@@ -310,16 +381,24 @@ class GnuplotContext(object):
             :type: `str`
             Gnuplot output to use, defaults to the default terminal output
 
+        >>> import time
+        >>> from .multithreading import threading
         >>> from .gnuplot import Gnuplot
         >>> with Gnuplot() as gp:
-        ...     fig1 = gp.Figure(title='My awesome figure', id=0)#, term='wxt')
+        ...     fig1 = gp.Figure(title='My awesome figure', id=0, term='qt')
         ...     fig1.plot('sin(x)', _with='linespoints')
         ...     fig1.plot('tan(x)', sampling_range='[-pi:pi]', title='tan(x)')
         ...     fig1.submit(timeout=5)
-        ...     fig2 = gp.Figure(title='Another awesome figure', id=1)#, term='wxt')
+        ...     fig2 = gp.Figure(title='Another awesome figure', id=1, term='qt')
         ...     gp.funs.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
         ...     fig2.splot(gp.funs.f['x', 'y'], _with='linespoints')
-        ...     fig2.submit(timeout=5, wait=True)
+        ...     closer = threading.Thread(target=lambda: time.sleep(2) or \
+                                                  gp.cmd('set term qt 1 close'))
+        ...     closer.setDaemon(True)
+        ...     closer.start()
+        ...     fig2.submit(timeout=5)
+        ...     closer.join()
+        ...     
         ...
 
         """

@@ -4,8 +4,12 @@
 from __future__ import print_function
 
 
-""" Python port of http://gnuplot.info/scripts/99bottles.gp """
+"""Python port of http://gnuplot.info/scripts/99bottles.gp
 
+The implementation could be simpler using only Python variables but it shows
+that functions and variables can flow from Python to Gnuplot and vice-versa
+
+"""
 if __name__ == '__main__':
 
     import argparse
@@ -48,8 +52,9 @@ if __name__ == '__main__':
         # Function which returns the number b or the string "no more" iff b=0.
         # The case of the first letter can be switched by the parameter c.
         # Please note that this function can be string or number valued.
-        gp.funs.number = gp.function(['b', 'c'], '(b > 0) ? sprintf("%d",b) : '\
-                                                 '"nN"[c+1:c+1] . "o more"')
+        gp.funs.number = gp.function(['b', 'c'],
+                                     '(b > 0) ? sprintf("%d",b) : '\
+                                                '"nN"[c+1:c+1] . "o more"')
         while gp.vars.bottles >= 0:
             # We use a ternary operator to decide what to do next ;-)
             gp.vars.action = \
