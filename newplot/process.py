@@ -1,20 +1,20 @@
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2017-2018 Romain CHÂTEL <rchastel@protonmail.com>
-# This file is part of Gnuplotting.
+# This file is part of Newplot.
 #
-# Gnuplotting is free software: you can redistribute it and/or modify
+# Newplot is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Gnuplotting is distributed in the hope that it will be useful,
+# Newplot is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
+# along with Newplot.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import os
@@ -160,9 +160,9 @@ class GnuplotProcess(GnuplotContext):
     PRINTERR = "printerr '%s'"
     OSECHO = "echo '%s'"
 
-    __BEGIN_TOKEN_FORMAT = '<gnuplotting-{id}-{cmd_id}>'
-    __DONE_TOKEN_FORMAT = '<gnuplotting-{id}-{cmd_id}-done>'
-    __EVENT_TOKEN = '<gnuplotting-{id}-{event}-{evt_id}>'
+    __BEGIN_TOKEN_FORMAT = '<newplot-{id}-{cmd_id}>'
+    __DONE_TOKEN_FORMAT = '<newplot-{id}-{cmd_id}-done>'
+    __EVENT_TOKEN = '<newplot-{id}-{event}-{evt_id}>'
 
     __uniqueId = CallableGenerator(LockedGenerator(itertools.count(1, 1)))
 

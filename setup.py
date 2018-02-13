@@ -2,34 +2,34 @@
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2017-2018 Romain CHÂTEL <rchastel@protonmail.com>
-# This file is part of Gnuplotting.
+# This file is part of Newplot.
 #
-# Gnuplotting is free software: you can redistribute it and/or modify
+# Newplot is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Gnuplotting is distributed in the hope that it will be useful,
+# Newplot is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
+# along with Newplot.  If not, see <http://www.gnu.org/licenses/>.
 
 
-"""Setup script for the gnuplotting module distribution."""
+"""Setup script for the newplot module distribution."""
 
 import os
 
 from setuptools import find_packages, setup, Command
 
-from gnuplotting.__init__ import __version__
+from newplot.__init__ import __version__
 
 # Package meta-data.
-NAME = 'gnuplotting'
-DESCRIPTION = 'Gnuplotting is a Python 2-way wrapper around the gnuplot program.'
-URL = 'https://github.com/drakk3/gnuplotting.git'
+NAME = 'newplot'
+DESCRIPTION = 'Newplot is a Python 2-way wrapper around the gnuplot program.'
+URL = 'https://github.com/drakk3/newplot.git'
 EMAIL = 'rchastel@protonmail.com'
 AUTHOR = 'Romain CHÂTEL'
 REQUIRED = []
@@ -65,6 +65,6 @@ setup(
         'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
-    test_suite='tests.doctests.alltests',
+    test_suite='tests.doctests',
 )
 
