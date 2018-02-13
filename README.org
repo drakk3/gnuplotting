@@ -1,8 +1,8 @@
 * Name
-Gnuplotting : An easy to use gnuplot-based plotting backend for Python
+Newplot : An easy to use gnuplot-based plotting backend for Python
 
 * Description
-Gnuplotting is a Python package that intends to be an easy to use and reliable
+Newplot is a Python package that intends to be an easy to use and reliable
 wrapper around the Gnuplot software. It provides a 2-way low-level 
 communication api with Gnuplot and a higher level api for common use-cases.
 
@@ -17,21 +17,21 @@ communication api with Gnuplot and a higher level api for common use-cases.
 
 *** Downloading
     #+BEGIN_SRC bash
-    git clone https://github.com/drakk3/gnuplotting.git gnuplotting
+    git clone https://github.com/drakk3/newplot.git newplot
     #+END_SRC
 
 *** Installing
     #+BEGIN_SRC bash
-    cd gnuplotting
+    cd newplot
     make install --user
    #+END_SRC
 
 * Usage
 #+BEGIN_SRC python
 
-import gnuplotting
+import newplot
 
-with gnuplotting.Gnuplot(defaultTimeout=1) as gp:
+with newplot.Gnuplot(defaultTimeout=1) as gp:
     
     # The output of Gnuplot is accessible in Python 
     print(gp.version)
@@ -67,11 +67,10 @@ with gnuplotting.Gnuplot(defaultTimeout=1) as gp:
     # Rendering is done only when `submit` is called
     fig1.submit()
 
-    # Gnuplotting can wait for the user to close a window
+    # Newplot can wait for the user to close a window
     fig2.submit(wait=True)
 
 #+END_SRC
-
 * Backlog
 #+TODO: TODO DOING FEEDBACK VERIFY | DONE CANCELED
 *** DOING Provide a consistent API to pass Python datas
@@ -92,17 +91,17 @@ Romain CHÂTEL <rchastel@protonmail.com>
 
 * Licence
 Copyright (C) 2017-2018 Romain CHÂTEL <rchastel@protonmail.com>
-This file is part of Gnuplotting.
+This file is part of Newplot.
 
-Gnuplotting is free software: you can redistribute it and/or modify
+Newplot is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-Gnuplotting is distributed in the hope that it will be useful,
+Newplot is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
+along with Newplot.  If not, see <http://www.gnu.org/licenses/>.

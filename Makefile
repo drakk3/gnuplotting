@@ -1,25 +1,25 @@
 
 # Copyright (C) 2017-2018 Romain CHÂTEL <rchastel@protonmail.com>
-# This file is part of Gnuplotting.
+# This file is part of Newplot.
 #
-# Gnuplotting is free software: you can redistribute it and/or modify
+# Newplot is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Gnuplotting is distributed in the hope that it will be useful,
+# Newplot is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
+# along with Newplot.  If not, see <http://www.gnu.org/licenses/>.
 
 cmd = $(word 1,$(MAKECMDGOALS))
 $(cmd)_args = $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
 $(eval $($(cmd)_args):;@:)
 
-py_src = gnuplotting/*.py
+py_src = newplot/*.py
 
 ifdef DEV_ENV
 # DEV part of the Makefile

@@ -2,20 +2,20 @@
 #-*- coding: utf-8 -*-
 
 # Copyright (C) 2017-2018 Romain CHÂTEL <rchastel@protonmail.com>
-# This file is part of Gnuplotting.
+# This file is part of Newplot.
 #
-# Gnuplotting is free software: you can redistribute it and/or modify
+# Newplot is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
-# Gnuplotting is distributed in the hope that it will be useful,
+# Newplot is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with Gnuplotting.  If not, see <http://www.gnu.org/licenses/>.
+# along with Newplot.  If not, see <http://www.gnu.org/licenses/>.
 
 
 import os
@@ -26,7 +26,7 @@ import doctest
 import unittest
 import importlib
 
-from gnuplotting.variable import Namespace
+from newplot.variable import Namespace
 
 TESTS_ROOT = os.path.abspath(os.path.dirname(__file__))
 ROOT = os.path.dirname(TESTS_ROOT)
@@ -82,19 +82,19 @@ class TestNamespace(Namespace, unittest.TestSuite):
 def load_tests(loader=None, test=None, pattern=None):
     if not ROOT in sys.path:
             sys.path.append(ROOT)
-    gnuplotting = 'gnuplotting'
-    test_paths = glob.iglob(os.path.join(gnuplotting, '**.py'))
+    newplot = 'gnuplotting'
+    test_paths = glob.iglob(os.path.join(newplot, '**.py'))
     test_paths = (test_path.replace('.py', '') \
                   for test_path in test_paths)
     test_module_path_by_names = \
                 ((os.path.basename(test_path.replace(os.sep + '__init__', '')),
                   test_path.replace(os.sep, '.')) for test_path in test_paths)
     test_modules = ((mod_name,
-                     importlib.import_module(mod_path, gnuplotting)) \
+                     importlib.import_module(mod_path, newplot)) \
                         for mod_name, mod_path in test_module_path_by_names)
     test_modules = ((mod_name, mod) for mod_name, mod in test_modules \
                     if inspect.getsource(mod).find('"""') > -1)
-    doctests = TestNamespace(gnuplotting)
+    doctests = TestNamespace(newplot)
     for name, test_mod in test_modules:
         test_suite = doctest.DocTestSuite(module=test_mod)
         doctests.addTests(test_suite)

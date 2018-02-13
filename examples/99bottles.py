@@ -13,7 +13,7 @@ that functions and variables can flow from Python to Gnuplot and vice-versa
 if __name__ == '__main__':
 
     import argparse
-    import gnuplotting
+    import newplot
 
     parser = argparse.ArgumentParser(description='Python port of 99bottles.gp :'
                                      ' http://gnuplot.info/scripts/99bottles.gp')
@@ -24,7 +24,7 @@ if __name__ == '__main__':
         raise ValueError("This is the 99 bottles song, so 'max_bottles' must be"
                          " in [1:99]")
     
-    with gnuplotting.Gnuplot() as gp:
+    with newplot.Gnuplot() as gp:
         # Define a maximum number of bottles in case we do not want the whole
         # song.
         gp.vars.max = args.max_bottles
