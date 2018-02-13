@@ -26,7 +26,57 @@ from .utils import CallableGenerator
 
 
 class GnuplotFigure(object):
+    """An abstraction around Gnuplot's terminals
 
+    It provides an API for plotting curves on the same canvas
+    All user requested operations are delayed until the `submit` method is
+    called.
+
+    :param context:
+        :type: `GnuplotContext`
+        The `GnuplotContext` where the figure lives
+    :param term:
+        :type: `str`
+        Type of the Gnuplot terminal to use
+    :param id:
+        :type: `int`
+        Gnuplot ID of the figure. It matches the number used when sending
+        `set term <term> <id>` to Gnuplot.
+    :param title:
+        :type: `str`
+        Title of the figure
+    :param options:
+        :type: `iterable(str)`
+        Additionnal options to pass to the `set term <options>` command
+    :param output:
+        :type: `str`
+        Output of the underlying Gnuplot terminal, used by the
+        `set output <output` command
+
+    :attr id:
+        :type: `int`
+        Gnuplot ID of the figure. It matches the number used when sending
+        `set term <term> <id>` to Gnuplot.
+        (Read-only)
+    :attr term:
+        :type: `str`
+        Type of the Gnuplot terminal to use
+        (Read-only)
+    :attr title:
+        :type: `str`
+        Title of this figure
+        (Read-write)
+    :attr options:
+        :type: `iterable(str)`
+        Additionnal options to pass to the `set term <options>` command
+        (Read-write)
+    :attr output:
+        :type: `str`
+        Output of the underlying Gnuplot terminal, used by the
+        `set output <output` command
+        (Read-write)
+    
+    """
     __uniqueId = CallableGenerator(LockedGenerator(itertools.count(0, 1)))
     __protected_settings = frozenset(('term', 'terminal', 'title', 'output'))
     __term_desc_prefix = 'terminal type is '
@@ -68,13 +118,23 @@ class GnuplotFigure(object):
         self.reset()
 
     def setTitle(self, title):
+        """Sets the title of this figure"""
         self.__title = title
+        self.__unsafeSet('title', '"' + title + '"')
 
     def setOptions(self, options):
+        """Sets the options of this figure"""
         self.__options = options or ()
+        options = ' '.join(map(str, self.__options))
+        self.__unsageSet('term',
+                         '{term}{sp}{options}'.format(term=self.__term_line,
+                                                      sp=' ' if options else '',
+                                                      options=options))
 
     def setOutput(self, output):
+        """Sets the output of this figure"""
         self.__output = output
+        self.__unsafeSet('output', output)
 
     title = property(lambda self: self.__title, setTitle)
     options = property(lambda self: self.__options, setOptions)
@@ -98,14 +158,10 @@ class GnuplotFigure(object):
 
     def reset(self):
         self.flush()
-        options = ' '.join(map(str, self.__options))
-        self.__unsafeSet('term',
-                         '{term}{sp}{options}'.format(term=self.__term_line,
-                                                      sp=' ' if options else '',
-                                                      options=options))
+        if self.__options: self.setOptions(self.__options)
         self.__settings.append('reset')
-        if self.__output: self.__unsafeSet('output', '"' + self.__output + '"')
-        if self.__title: self.__unsafeSet('title', '"' + self.__title + '"')
+        if self.__output: self.setOutput(self.__output)
+        if self.__title: self.setTitle(self.__title)
 
     def flush(self, settings=True, plots=True, splots=True):
         if settings: del self.__settings[:]
@@ -144,7 +200,7 @@ class GnuplotFigure(object):
         self.__addPlot(self.__plots, *datas, **kwargs)
     
     def splot(self, *datas, **kwargs):
-        self.__addPlot(self.__splots, *datas, **kwargs)    
+        self.__addPlot(self.__splots, *datas, **kwargs)
 
     def wait(self, timeout=None):
         wait_evt = (self.__term + ('_' + str(self.__id) if self.__id else ''),

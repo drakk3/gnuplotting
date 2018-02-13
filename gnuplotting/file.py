@@ -44,8 +44,11 @@ class GnuplotFile(GnuplotContext):
             self.__encode = lambda s: s.encode(encoding)
         else:
             self.__encode = lambda s: s
-        self.supportsTimeout = lambda: False
         self.send = self.write
+
+    @property
+    def isinteractive(self):
+        return False
 
     def terminate(self):
         super(GnuplotFile, self).terminate()

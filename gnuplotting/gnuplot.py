@@ -52,7 +52,7 @@ def Gnuplot(backend=DEFAULT_GNUPLOT_CMD, **kwargs):
     ...     gp.cmd('set term qt')
     ...     gp.cmd('plot sin(x)')
     ...     gp.cmd('set term qt 0 close')
-    ...     gp.supportsTimeout()
+    ...     gp.isinteractive
     ...
     True
 
@@ -60,7 +60,7 @@ def Gnuplot(backend=DEFAULT_GNUPLOT_CMD, **kwargs):
     >>> with Gnuplot(tmp.TemporaryFile(prefix='gnuplot-', suffix='.gp')) as gp:
     ...     gp.cmd('set term qt 0')
     ...     gp.cmd('plot sin(x)')
-    ...     gp.supportsTimeout()
+    ...     gp.isinteractive
     False
 
     """
