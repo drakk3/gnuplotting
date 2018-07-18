@@ -166,6 +166,8 @@ class GnuplotProcess(GnuplotContext):
 
     __uniqueId = CallableGenerator(LockedGenerator(itertools.count(1, 1)))
 
+    id = property(lambda self: self.__id)
+
     def __init__(self, cmd=DEFAULT_GNUPLOT_CMD,
                        args=(),
                        log=False,
@@ -182,7 +184,7 @@ class GnuplotProcess(GnuplotContext):
                  (isnumber(defaultTimeout) and defaultTimeout >= 0)):
             raise TypeError("'defaultTimeout' argument must be None or a >= 0 "
                             "number")
-        self.id = self.__uniqueId()
+        self.__id = self.__uniqueId()
         self.__backend = subprocess.Popen([cmd] + list(map(str, args)),
                                           stdin=subprocess.PIPE,
                                           stdout=subprocess.PIPE,
@@ -197,7 +199,8 @@ class GnuplotProcess(GnuplotContext):
         self.__reader = _GnuplotOutputReader(self.__stdout,
                                              self.NO_WAIT, self.id)
         self.__reader.start()
-        self.version = lambda: self.cmd(self.__print('GPVAL_VERSION'))
+
+    version = property(lambda: self.cmd(self.__print('GPVAL_VERSION')))
 
     @property
     def isinteractive(self):
@@ -230,8 +233,7 @@ class GnuplotProcess(GnuplotContext):
 
     def terminate(self):
         super(GnuplotProcess, self).terminate()
-        self.stop()
-        
+        self.stop()        
 
     def __print(self, to_print):
         return 'printerr %s' % to_print
@@ -253,7 +255,7 @@ class GnuplotProcess(GnuplotContext):
             timeout = self.__defaultTimeout
         return timeout
 
-    __authorized_sync = frozenset((PRINTERR, PRINTERR))
+    __authorized_sync = frozenset((PRINTERR, OSECHO))
 
     def send(self, lines, timeout=-1, sync=(PRINTERR, PRINTERR)):
         """Send lines for evaluation to gnuplot

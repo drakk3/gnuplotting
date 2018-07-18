@@ -41,6 +41,17 @@ inspect = type('INSPECT', (object,),
                                   if IS_PYTHON2 \
                                   else _inspect.getfullargspec(fun)})()
 
+def with_metaclass(metaclass, *bases):
+    """A python 2/3 metaclass generator"""
+    class _type(type):
+        def __new__(cls, name, _, d):
+            return metaclass(name, bases, d)
+
+        @classmethod
+        def __prepare__(cls, name, _):
+            return metaclass.__prepare__(name, bases)
+    return type.__new__(_type, 'Meta23', (), {})
+
 if sys.platform.startswith('linux'):
     DEFAULT_GNUPLOT_CMD = 'gnuplot'
     SHOW_PROMPT = 'printf "[%s@%s:%s]$ " "${USER}" "${HOSTNAME%%.*}" "${PWD/#$HOME/\~}"'

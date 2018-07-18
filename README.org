@@ -27,6 +27,7 @@ communication api with Gnuplot and a higher level api for common use-cases.
    #+END_SRC
 
 * Usage
+
 #+BEGIN_SRC python
 
 import newplot
@@ -37,13 +38,13 @@ with newplot.Gnuplot(defaultTimeout=1) as gp:
     print(gp.version)
     
     # Defining Gnuplot user variable from Python
-    gp.vars.c = 2
+    gp.c = 2
 
     # Defining Gnuplot user function from Python
-    gp.funs.f = gp.function(['x'], '2*x**2 + x + c')
+    gp.f = gp.function(['x'], '2*x**2 + x + c')
 
     # Function and variables are evaluable inside the Python interpreter
-    print(gp.funs.f(5) + gp.vars.c)
+    print(gp.f(5) + gp.c)
 
     # Defining a new Gnuplot figure    
     fig1 = gp.Figure(title="My first awesome figure",
@@ -59,10 +60,10 @@ with newplot.Gnuplot(defaultTimeout=1) as gp:
     fig2 = gp.Figure(title="Another awesome figure !")
     
     # Defining a 2 variables function
-    gp.funs.g = gp.function(['u', 'v'], ('cos(u)', 'sin(v)'))
+    gp.g = gp.function(['u', 'v'], ('cos(u)', 'sin(v)'))
 
     # 3D plotting
-    fig2.splot(gp.funs.g['x', 'y'], _with='pm3d')
+    fig2.splot(gp.g['x', 'y'], _with='pm3d')
 
     # Rendering is done only when `submit` is called
     fig1.submit()

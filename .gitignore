@@ -17,6 +17,7 @@
 # along with Newplot.  If not, see <http://www.gnu.org/licenses/>.
 
 .#*
+*.save
 __pycache__
 *.egg-info
 doc

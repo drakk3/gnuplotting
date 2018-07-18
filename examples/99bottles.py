@@ -27,7 +27,7 @@ if __name__ == '__main__':
     with newplot.Gnuplot() as gp:
         # Define a maximum number of bottles in case we do not want the whole
         # song.
-        gp.vars.max = args.max_bottles
+        gp.max = args.max_bottles
         # Initialize the plot only once (bottles is undefined on first entry).
         # Open the "dumb" terminal to generate ascii art
         # Define the plot layout such that there are 99 character slots for
@@ -43,32 +43,32 @@ if __name__ == '__main__':
         fig.set('xrange', '[0:100]')
         fig.set('yrange', '[-1:1]')
         # Create and initialize the bottles counter
-        gp.vars.bottles = gp.vars.max
+        gp.bottles = gp.max
         # String valued function to create the "bottle(s)" string
         # To decide wether we should a plural 's' a dirty substring trick
         # is used, but we could always use a ternary operator instead
         # Note that there is no name conflict with the bottles variable.
-        gp.funs.bottles = gp.function(['b'], '"bottle" . "s"[0:(b != 1)]')
+        gp._bottles = gp.function(['b'], '"bottle" . "s"[0:(b != 1)]')
         # Function which returns the number b or the string "no more" iff b=0.
         # The case of the first letter can be switched by the parameter c.
         # Please note that this function can be string or number valued.
-        gp.funs.number = gp.function(['b', 'c'],
-                                     '(b > 0) ? sprintf("%d",b) : '\
-                                                '"nN"[c+1:c+1] . "o more"')
-        while gp.vars.bottles >= 0:
+        gp.number = gp.function(['b', 'c'],
+                                '(b > 0) ? sprintf("%d",b) : '\
+                                           '"nN"[c+1:c+1] . "o more"')
+        while gp.bottles >= 0:
             # We use a ternary operator to decide what to do next ;-)
-            gp.vars.action = \
+            gp.action = \
                 '(bottles != 0) ? "Take one down and pass it around":'\
-                '"Go to the store and buy some more"'
+                                  '"Go to the store and buy some more"'
             # Write the new verse into a label
             # On the sceond line the modulo trick is used to wrap around the
             # number of bottles
-            gp.vars.Label1 = 'sprintf("%s %s of beer on the wall, %s %s of ' \
-                             'beer.\\n", number(bottles,1), bottles(bottles),' \
-                             ' number(bottles,0), bottles(bottles))'
-            gp.vars.Label2 = 'action . ", " . sprintf("%s %s of beer on the ' \
-                             'wall.", number((bottles + max) % (max + 1), 0), '\
-                             'bottles(bottles-1))'
+            gp.Label1 = 'sprintf("%s %s of beer on the wall, %s %s of ' \
+                             'beer.\\n", number(bottles,1), _bottles(bottles),' \
+                             ' number(bottles,0), _bottles(bottles))'
+            gp.Label2 = 'action . ", " . sprintf("%s %s of beer on the ' \
+                            'wall.", number((bottles + max) % (max + 1), 0), '\
+                            '_bottles(bottles-1))'
 
             # Use the verse as a label for the x-axis
             fig.set('xlabel', 'Label1.Label2', 'offset 0,-1')
@@ -85,4 +85,4 @@ if __name__ == '__main__':
             fig.set('samples', 'bottles+2')
             fig.plot('1', _with='impulses linetype 6')
             print(fig.submit())
-            gp.vars.bottles = gp.vars.bottles - 1
+            gp.bottles = gp.bottles - 1

@@ -126,7 +126,7 @@ class GnuplotFigure(object):
         """Sets the options of this figure"""
         self.__options = options or ()
         options = ' '.join(map(str, self.__options))
-        self.__unsageSet('term',
+        self.__unsafeSet('term',
                          '{term}{sp}{options}'.format(term=self.__term_line,
                                                       sp=' ' if options else '',
                                                       options=options))

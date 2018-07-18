@@ -22,21 +22,14 @@ import itertools
 
 from .platform import print_function, unicode
 from .figure import GnuplotFigure
-from .variable import (GnuplotVariableNamespace, GnuplotFunctionNamespace,
-                       GnuplotFunction)
+from .variable import GnuplotNamespace, GnuplotFunctionSpec
 
 
-class GnuplotContext(object):
+class GnuplotContext(GnuplotNamespace):
     """A base class that manages a 2-way communication with Gnuplot
 
     Subclasses must implement the `isinteractive` property and the `send` method
 
-    :attr vars:
-        :type: `GnuplotVariableNamespace`
-        A namespace that holds variables shared with Gnuplot
-    :attr funs:
-        :type: `GnuplotFunctionNamespace`
-        A namespace that holds functions shared with Gnuplot
     :attr NO_WAIT:
         :type: `float`
         A special timeout value that means don't wait for a response
@@ -47,12 +40,7 @@ class GnuplotContext(object):
     __FLUSH_INTERACTIVE = lambda self: ('' for c in os.linesep * 50)
 
     def __init__(self):
-        super(GnuplotContext, self).__init__()
-        self.__vars = GnuplotVariableNamespace(self)
-        self.__funs = GnuplotFunctionNamespace(self)
-
-    vars = property(lambda self: self.__vars)
-    funs = property(lambda self: self.__funs)
+        super(GnuplotContext, self).__init__(self)
 
     @property
     def isinteractive(self):
@@ -210,8 +198,7 @@ class GnuplotContext(object):
 
         """
         try:
-            self.__vars.clear(timeout=self.NO_WAIT)
-            self.__funs.clear(timeout=self.NO_WAIT)
+            self.clear(timeout=self.NO_WAIT)
         except ValueError:
             # The pipe may have already been close : silent the error
             pass
@@ -356,10 +343,10 @@ class GnuplotContext(object):
             Body of the function
 
         :returns:
-           An unbound GnuplotFunction
+           A GnuplotFunctionSpec
 
         """
-        return GnuplotFunction(self.vars, args, body)
+        return GnuplotFunctionSpec(args, body)
     
     def Figure(self, term=None, id=None, title=None, options=None, output=None):
         """Create a new Gnuplot figure
@@ -390,15 +377,15 @@ class GnuplotContext(object):
         ...     fig1.plot('tan(x)', sampling_range='[-pi:pi]', title='tan(x)')
         ...     fig1.submit(timeout=5)
         ...     fig2 = gp.Figure(title='Another awesome figure', id=1, term='qt')
-        ...     gp.funs.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
-        ...     fig2.splot(gp.funs.f['x', 'y'], _with='linespoints')
+        ...     gp.f = gp.function(['u', 'v'], '(cos(u), sin(v))')
+        ...     fig2.splot(gp.f['x', 'y'], _with='linespoints')
         ...     closer = threading.Thread(target=lambda: time.sleep(2) or \
                                                   gp.cmd('set term qt 1 close'))
         ...     closer.setDaemon(True)
         ...     closer.start()
         ...     fig2.submit(timeout=5)
         ...     closer.join()
-        ...     
+        ...
         ...
 
         """

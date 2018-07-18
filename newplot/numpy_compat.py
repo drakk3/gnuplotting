@@ -36,7 +36,7 @@ except ImportError:
     warnings.warn("Numpy isn't available on this environment, falls back to raw"
                   " Python mode. Note that this can be significantly slower")
     
-    ufunc = type(None)
+    ufunc = type('ufunc', (object,), {})
     newaxis = None
     vadd = lambda a, b: list(map(lambda aa, bb: aa + bb, a, b))
     

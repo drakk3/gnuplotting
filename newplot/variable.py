@@ -17,97 +17,115 @@
 # along with Newplot.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from .utils import isfloat
-from .platform import map, print_function
+import re
+import itertools
+
+from collections import namedtuple
+
+from .utils import isfloat, VOID
+from .platform import map, print_function, unicode, with_metaclass
 
 
 class GnuplotDefinable(object):
     """An abstract class for gnuplot values than can be created and accessed
     from Python
 
-    :param ns:
-        :type: `GnuplotNamespace`
-        The namespace where the value live
+    :param name:
+        :type: `str`
+        The name of the value
 
+    :attr name:
+        :type: `str`
+        Value name in the namespace
     :attr gnuplot_id:
         :type: `str`
         Value ID given by Gnuplot
-    :attr name:
-        :type; `str`
-        Value name in the namespace
-    :attr qualname:
-        :type: `str`
-        Value qualified name, for variable it equals to `name`. For function it
-        equals to `name`(`args ...`)
-    :attr expr:
-        :type: `str`
-        Definition expression of this value.
 
     """
-    def __init__(self, ns):
-        super(GnuplotDefinable, self).__init__()
-        self.__name = None
-        self.__ns = ns
-    ns = property(lambda self: self.__ns)
+    name = property(lambda self: self.__name)
+    gnuplot_id = property(lambda self: self.__name)
 
-    @property
-    def gnuplot_id(self):
-        return self.__name
+    def __init__(self, name):
+        self.__name = name
 
-    @property
-    def qualname(self):
-        return self.__name
-
-    def destroy(self):
-        """Delete `self` from it's namespace and Gnuplot"""
-        self.__ns.undefine(self.name, self.gnuplot_id)
-        self.__ns = None
-
-    @property
-    def expr(self):
+    def cast(self):
         raise NotImplementedError
 
-    def __setName(self, name):
-        self.__name = name
-        self.__ns.define(self.qualname, self.expr)
+    def parse(self, s):
+        raise NotImplementedError
 
-    name = property(lambda self: self.__name, __setName)
+def _parseGnuplotValue(s):
+    if s:
+        if s.isdigit():
+            return int(s)
+        if isfloat(s):
+            return float(s)
+        return s
+    return None
+
+def _GnuplotVariable(name, value):
+    def parse_var(s):
+        return _GnuplotVariable(name, _parseGnuplotValue(s))
+    cls = type(value)
+    return type('GnuplotVariable', (GnuplotDefinable, cls),
+                {'__init__': lambda self, value: \
+                                    GnuplotDefinable.__init__(self, name),
+                 'cast': lambda self: cls(self),
+                 'parse': classmethod(lambda cls, s: parse_var(s)),
+                 'defn': property(lambda self: '{} = {}'\
+                                  .format(self.name, str(self)))})(value)
 
 
+GnuplotFunctionSpec = namedtuple('GnuplotFunctionSpec', ['args', 'body'])
 class GnuplotFunction(GnuplotDefinable):
     """A Gnuplot function defined in Python
 
     :param ns:
-        :type: `GnuplotFunctionNamespace`
+        :type: `GnuplotNamespace`
         The namespace where live this function
 
     :attr arity:
         :type: `int`
         Arity of this function
+    :attr defargs:
+        :type: `iterable of str`
+        Definition list of argument names
+    :attr defbody:
+        :type: `str`
+        Definition body of this function.
+    :attr defn:
+        :type: `str`
+        Definition line of this function
 
     """
-    def __init__(self, ns, args, body):
-        super(GnuplotFunction, self).__init__(ns)
-        self.__args = args
-        self.__body = str(body)
-        self.__arity = len(args)
+    def __init__(self, ns, name, spec):
+        super(GnuplotFunction, self).__init__(name)
+        self.__ns = ns
+        self.__spec = spec
 
-    arity = property(lambda self: self.__arity)
-
-    def __formatArgs(self, args):
-        return ', '.join(map(str, args))
+    defargs = property(lambda self: self.__spec.args)
+    defbody = property(lambda self: self.__spec.body)
+    arity = property(lambda self: len(self.defargs))
+    defn = property(lambda self: '{}({}) = {}'.format(self.name,
+                                                      ', '.join(self.defargs),
+                                                      self.defbody))
+    __defn_pattern = re.compile('\s*(?P<name>\S+)\s*\(\s*(?P<args>.+)\s*\)\s*=\s*(?P<body>.+)\s*')
 
     @property
     def gnuplot_id(self):
         return 'GPFUN_' + self.name
 
-    @property
-    def qualname(self):
-        return self.name + '(' + self.__formatArgs(self.__args) + ')'
+    def cast(self):
+        return self.__spec
 
-    @property
-    def expr(self):
-        return self.__body
+    def parse(self, s):
+        m = self.__defn_pattern.match(s)
+        if m:
+            return GnuplotFunctionSpec(map(lambda e: e.strip(),
+                                           m.group('args').split(',')),
+                                       m.group('body'))
+        else:
+            raise ValueError('Bad function definition : \'{}\''.format(s))
 
     def __call__(self, *args):
         """Tells Gnuplot to evaluate this function
@@ -120,8 +138,7 @@ class GnuplotFunction(GnuplotDefinable):
             The evaluation of this function agains the given arguments
 
         """
-        expr = self.name + '(' + self.__formatArgs(args) + ')'
-        return self.ns.eval(self.gnuplot_id, expr)
+        return self.__ns.eval(self, args)
 
     def pack(self, *args):
         """Return the expression that packs the given args into a call to `self`
@@ -138,7 +155,9 @@ class GnuplotFunction(GnuplotDefinable):
         than those used in the definition.
 
         """
-        return self.name + '(' + self.__formatArgs(args) + ')'
+        if len(args) < 1:
+            raise ValueError('Cannot pack against 0 arguments')
+        return self.name + '(' + ', '.join(args) + ')'
 
     def __getitem__(self, args):
         """A shorthand and syntactic sugar for pack
@@ -153,43 +172,72 @@ class GnuplotFunction(GnuplotDefinable):
         return self.pack(*args)
 
 
-class GnuplotVariable(GnuplotDefinable):
-    """A Gnuplot variable accessible from Python"""
-    def __init__(self, ns, value):
-        super(GnuplotVariable, self).__init__(ns)
-        self.__value = value
-
-    @property
-    def expr(self):
-        return str(self.__value)
-
-    def __get__(self, instance, owner=None):
-        return self.__value
-
-
-class Namespace(dict):
-
-    def __init__(self, **kwargs):
-        super(Namespace, self).__init__()
-        for name, value in kwargs.items():
-            if name.startswith('__') and not name.endswith('__'):
-                name = '_' + type(self).__name__ + name
-            super(Namespace, self).__setattr__(name, value)
-
-    def __setattr__(self, name, value):
-        self[name] = value
-
-    def __getattr__(self, name):
-        if name in self:
-            obj = self[name]
-            if hasattr(obj, '__get__'):
-                return obj.__get__(self, None)
-            return obj
-        raise AttributeError("%s has no attribute %s" % \
-                             (type(self).__name__, name))
+class GnuplotValueProxy(object):
     
+    def __init__(self, name):
+        self.__instances = {}
+        self.__name__ = name
 
-class GnuplotNamespace(Namespace):
+    def __definable(self, ns, value):
+        # Cast to variable
+        if isinstance(value, (int, float, str, unicode, bytes)):
+            if isinstance(value, GnuplotDefinable):
+                value = value.cast()
+            return _GnuplotVariable(self.__name__, value)
+        elif isinstance(value, GnuplotFunctionSpec):
+            return GnuplotFunction(ns, self.__name__, value)
+        else:
+            raise ValueError('Can not cast \'{}\' to \'{}\'' \
+                             .format(value, self.__class__.__name__))
+
+    def existsFor(self, ns):
+        return ns in self.__instances
+
+    def __get__(self, ns, cls):
+        if not ns in self.__instances:
+            raise AttributeError('\'{}\' object has no attribute \'{}\'' \
+                                 .format(cls.__name__, self.__name__))
+        return self.__instances[ns]
+
+    def __set__(self, ns, value):
+        self.__instances[ns] = self.__definable(ns, value)
+
+    def __delete__(self, ns):
+        self.__instances.pop(ns)
+
+
+class Namespace(type):
+
+    def __init__(cls, name, bases, attrs, **kwargs):
+        def __base():
+            return bases[0] if bases else object
+        def __setattr(self, name, value, *args, **kwargs):
+            if hasattr(self, '__ns_init_done__'):
+                if not name in self.__ns_protected__:
+                    self.__define__(name, value, *args, **kwargs)
+                    return
+            __base().__setattr__(self, name, value)
+        def __delattr(self, name, *args, **kwargs):
+            if hasattr(self, '__ns_init_done__'):
+                if not name in self.__ns_protected__:
+                    self.__undefine__(name, *args, **kwargs)
+                    return
+            __base().__delattr__(self, name)
+        type.__init__(cls, name, bases, attrs, **kwargs)
+        cls.__ns_protected__ = \
+            itertools.chain((e for e in getattr(cls, '__ns_protected__', ())),
+                            (e for base in bases \
+                             for e in getattr(base, '__ns_protected__', ())))
+        cls.__setattr__ = __setattr
+        cls.__delattr__ = __delattr
+
+    def __call__(cls, *args, **kwargs):
+        instance = type.__call__(cls, *args, **kwargs)
+        instance.__ns_init_done__ = True
+        return instance
+
+
+class GnuplotNamespace(with_metaclass(Namespace, object)):
     """A namespace that manages access to Gnuplot variables and functions
 
     :param context:
@@ -200,19 +248,19 @@ class GnuplotNamespace(Namespace):
     
     >>> from .gnuplot import Gnuplot
     >>> with Gnuplot() as gp:
-    ...     gp.vars.max = 99                          # define 'max' variable
-    ...     print(gp.vars.max)                        # retrieve 'max' value
-    ...     gp.funs.f = gp.function(['x'], 'x + 1')   # define 'f(x)' function
-    ...     print(gp.funs.f.arity)
-    ...     print(gp.funs.f.gnuplot_id)
-    ...     print(gp.funs.f(1))                       # evaluate 'f(1)'
-    ...     gp.vars.max = 10.0                        # set 'max' value to 10
-    ...     print(gp.vars.max)                        # retrieve 'max' new value
-    ...     print(gp.funs.f(10))                      # evaluate 'f(10)'
-    ...     print(gp.funs.f['a', 'b'])
-    ...     gp.vars.max = None                        # undefine 'max'
+    ...     gp.max = 99                            # define 'max' variable
+    ...     print(gp.max)                          # retrieve 'max' value
+    ...     gp.f = gp.function(['x'], 'x + 1')     # define 'f(x)' function
+    ...     print(gp.f.arity)
+    ...     print(gp.f.gnuplot_id)
+    ...     print(gp.f(1))                         # evaluate 'f(1)'
+    ...     gp.max = 10.0                          # set 'max' value to 10
+    ...     print(gp.max)                          # retrieve 'max' new value
+    ...     print(gp.f(10))                        # evaluate 'f(10)'
+    ...     print(gp.f['a', 'b'])
+    ...     del gp.max                             # undefine 'max'
     ...     try:
-    ...         gp.vars.max
+    ...         gp.max
     ...     except AttributeError as e:
     ...         pass
     ...     else:
@@ -227,70 +275,44 @@ class GnuplotNamespace(Namespace):
 
     """
     def __init__(self, context):
-        super(GnuplotNamespace, self).__init__(_GnuplotNamespace__context=context)
+        super(GnuplotNamespace, self).__init__()
+        self.__context = context
+        self.__defined = set()
+        self.define = self.__define__
 
-    
-    def __setattr__(self, name, value):
-        if value is None:
-            if name in self:
-                self.pop(name).destroy()
-        else:
-            value.name = name
-            super(GnuplotNamespace, self).__setattr__(name, value)
-                
-    def eval(self, name, expr):
-        """Evaluate an expression inside Gnuplot
+    def __getProxy(self, name, default=VOID):
+        cls = self.__class__
+        proxy = cls.__dict__.get(name, default)
+        if proxy is VOID:
+            raise AttributeError('\'{}\' object has no attribute \'{}\'' \
+                                 .format(cls, name))
+        return proxy
 
-        :param name:
-            :type: `str`
-            Name of the value to evaluate
-        :param expr:
-            :type: `str`
-            Expression to evaluate
 
-        :returns:
-            The evaluation's result
-
-        """
-        value = self.__context.cmd('if(exists("{name}")) printerr {expr} ; ' \
-                                   'else printerr "    line 0: \'{name}\' is ' \
-                                   'not defined'.format(name=name, expr=expr))
-        if value:
-            if value.isdigit():
-                return int(value)
-            elif isfloat(value):
-                return float(value)
-            return value
-        return None
-
-    def define(self, name, expr):
+    def __define__(self, name, value, timeout=-1):
         """Define a value in Gnuplot
 
         :param name:
             :type: `str`
             Name of the value to define
-        :param expr:
-            :type: `str`
-            The definition expression
+        :param value:
+            :type: `mixin`
+            The definition value
 
         """
-        self.__context.cmd(name + ' = ' + expr)
+        v = self.__getProxy(name, GnuplotValueProxy(name))
+        v.__set__(self, value)
+        self.__context.cmd(v.__get__(self, self.__class__).defn,
+                           timeout=timeout)
+        if not name in self.__class__.__dict__:
+            setattr(self.__class__, name, v)
+            self.__defined.add(name)
+        return getattr(self, name)
 
-    def undefine(self, name, gnuplot_id):
-        """Undefine a value in Gnuplot
-
-        The value is removed from Gnuplot and it's namespace
-
-        :param name:
-            :type: `str`
-            Name of the value to delete
-        :param gnuplot_id:
-            :type: `str`
-            It's Gnuplot ID
-
-        """
-        self.__context.cmd('undefine ' + gnuplot_id)
-        self.pop(name, None)
+    def sync(self, value, timeout=-1):
+        expr = self.__context.cmd('printerr ' + value.gnuplot_id, timeout=timeout)
+        proxy = self.__getProxy(value.name)
+        proxy.__set__(self, type(value).parse(expr))
 
     def clear(self, timeout=-1):
         """Clear the namespace
@@ -301,32 +323,54 @@ class GnuplotNamespace(Namespace):
             `GnuplotContext.defaultTimeout`
 
         """
-        self.__context.send(map(lambda e: 'undefine ' + e[1].gnuplot_id,
-                                self.items()),
-                            timeout=timeout)
-        super(GnuplotNamespace, self).clear()
+        while self.__defined:
+            self.__delattr__(self.__defined.pop(), timeout=timeout)
 
-class GnuplotVariableNamespace(GnuplotNamespace):
-    """A Gnuplot namespace that holds variables"""
-    def __init__(self, context):
-        super(GnuplotVariableNamespace, self).__init__(context)
+    def __undefine__(self, name, timeout=-1):
+        value = getattr(self, name)
+        self.undefine(value, timeout=timeout)
+    
+    def undefine(self, value, timeout=-1):
+        """Undefine a value in Gnuplot
 
-    def __setattr__(self, name, value):
-        if value is not None and not isinstance(value, GnuplotDefinable):
-            value = GnuplotVariable(self, value)
-        if not isinstance(value, (GnuplotVariable, type(None))):
-            raise TypeError('This namespace is reserved for variable '
-                            'definitions, given {}'.format(type(value)))
-        super(GnuplotVariableNamespace, self).__setattr__(name, value)
+        The value is removed from Gnuplot and it's namespace
+
+        :param value:
+            :type: `GnuplotDefinable`
+            The value to delete
+        :param timeout:
+            :type: `float or None`
+            Number of seconds to wait for a Gnuplot response, defaults to
+            `GnuplotContext.defaultTimeout`
+
+        """
+        self.__context.cmd('undefine ' + value.gnuplot_id, timeout=timeout)
+        self.__getProxy(value.name).__delete__(self)
+        self.__defined.discard(value.name)
+    
+    def eval(self, fun, args, timeout=-1):
+        """Evaluate an expression inside Gnuplot
+
+        :param fun:
+            :type: `GnuplotFunction`
+            Function to evaluate
+        :param args:
+            :type: `Iterable`
+            Arguments to pass to the function
+
+        :returns:
+            fun(*args)
+
+        """
+        result = self.__context.cmd('printerr ' + fun.name + \
+                                    '(' + ', '.join(map(str, args)) + ')',
+                                    timeout=timeout)
+        return _parseGnuplotValue(result)
 
 
-class GnuplotFunctionNamespace(GnuplotNamespace):
-    """A Gnuplot namespace that holds functions"""
-    def __init__(self, context):
-        super(GnuplotFunctionNamespace, self).__init__(context)
-
-    def __setattr__(self, name, value):
-        if value and not isinstance(value, GnuplotFunction):
-            raise TypeError('This namespace is reserved for function '
-                            'definitions, given {}'.format(type(value)))
-        super(GnuplotFunctionNamespace, self).__setattr__(name, value)
+    def __dir__(self):
+        to_remove = (name for name in self.__defined \
+                     if not self.__class__.__dict__[name].existsFor(self))
+        attributes = dir(GnuplotNamespace) + list(self.__dict__.keys())
+        for it in to_remove: attributes.remove(it)
+        return attributes
